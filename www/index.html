@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -63,7 +64,7 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* מספרים יציבים שאינם קופצים בשינוי */
+‎  /* מספרים יציבים שאינם קופצים בשינוי */
   .strip .val,
   .dashboard-stat-val,
   .computed,
@@ -298,7 +299,7 @@
 
   .mobile-cards-container { display: none; flex-direction: column; gap: 14px; }
 
-  /* כפתור הוספת יום עליון למובייל בלבד */
+‎  /* כפתור הוספת יום עליון למובייל בלבד */
   .mobile-top-actions {
     display: none;
     margin-bottom: 14px;
@@ -325,7 +326,7 @@
     transform: scale(0.98);
   }
 
-  /* הדגשה ייחודית לכרטיסיית המשמרת הפעילה במובייל */
+‎  /* הדגשה ייחודית לכרטיסיית המשמרת הפעילה במובייל */
   .mobile-day-card.active-shift-card {
     background: linear-gradient(145deg, rgba(0, 113, 227, 0.09) 0%, var(--card-bg) 65%);
     border: 2px solid var(--accent);
@@ -552,7 +553,7 @@
   #theme-toggle-fab:hover { transform: scale(1.08); }
   #theme-toggle-fab:active { transform: scale(0.95); }
 
-  /* מודלים עם אנימציית כניסה חלקה */
+‎  /* מודלים עם אנימציית כניסה חלקה */
   @keyframes modalFadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -798,7 +799,7 @@
         </div>
       </div>
       <div style="font-size:11px; color:var(--text-dim); margin-top:10px; text-align:center;">
-        * מותר להיכנס למינוס עד 42 שעות חופש. בעת סגירת חודש יבוצעו חישוב וקיזוז מול מונה היתרות.
+‎        * מותר להיכנס למינוס עד 42 שעות חופש. בעת סגירת חודש יבוצעו חישוב וקיזוז מול מונה היתרות.
       </div>
     </div>
 
@@ -910,7 +911,7 @@
     <div class="card" id="archive-card" style="display:none;">
       <h2><span class="dot" style="background:#5856d6"></span>ארכיון חודשים קודמים</h2>
       <p style="font-size:12px; color:var(--text-dim); margin-top:-10px; margin-bottom:12px;">
-        לחיצה על חודש תשלוף אותו לטבלה הראשית לעריכה. החודש הפעיל יישמר ותוכל לחזור אליו בכל עת.
+‎        לחיצה על חודש תשלוף אותו לטבלה הראשית לעריכה. החודש הפעיל יישמר ותוכל לחזור אליו בכל עת.
       </p>
       <div class="actions-container" id="archive-list" style="margin-top: 0;"></div>
     </div>
@@ -972,7 +973,7 @@
 </div>
 
 <script>
-// --- קונפיגורציית מס וביטוח לאומי (לעדכון שנתי מהיר) ---
+‎// --- קונפיגורציית מס וביטוח לאומי (לעדכון שנתי מהיר) ---
 const TAX_CONFIG = {
   incomeBrackets: [
     { threshold: 46690, rate: 0.47 },
@@ -991,45 +992,45 @@ const TAX_CONFIG = {
   standardMonthlyHours: 182
 };
 
-// --- לוח חגים וערבי חג (2026-2027) ---
+‎// --- לוח חגים וערבי חג (2026-2027) ---
 const ISRAELI_HOLIDAYS = {
   // 2026
-  '2026-03-02': 'פורים',
-  '2026-03-31': 'ערב פסח',
-  '2026-04-01': 'פסח (יום א\')',
-  '2026-04-07': 'פסח (שביעי)',
-  '2026-04-21': 'יום העצמאות',
-  '2026-05-20': 'ערב שבועות',
-  '2026-05-21': 'שבועות',
-  '2026-09-11': 'ערב ראש השנה',
-  '2026-09-12': 'ראש השנה א\'',
-  '2026-09-13': 'ראש השנה ב\'',
-  '2026-09-20': 'ערב יום כיפור',
-  '2026-09-21': 'יום כיפור',
-  '2026-09-25': 'ערב סוכות',
-  '2026-09-26': 'סוכות',
-  '2026-10-02': 'שמיני עצרת / שמחת תורה',
+‎  '2026-03-02': 'פורים',
+‎  '2026-03-31': 'ערב פסח',
+‎  '2026-04-01': 'פסח (יום א\')',
+‎  '2026-04-07': 'פסח (שביעי)',
+‎  '2026-04-21': 'יום העצמאות',
+‎  '2026-05-20': 'ערב שבועות',
+‎  '2026-05-21': 'שבועות',
+‎  '2026-09-11': 'ערב ראש השנה',
+‎  '2026-09-12': 'ראש השנה א\'',
+‎  '2026-09-13': 'ראש השנה ב\'',
+‎  '2026-09-20': 'ערב יום כיפור',
+‎  '2026-09-21': 'יום כיפור',
+‎  '2026-09-25': 'ערב סוכות',
+‎  '2026-09-26': 'סוכות',
+‎  '2026-10-02': 'שמיני עצרת / שמחת תורה',
   // 2027
-  '2027-03-23': 'פורים',
-  '2027-04-21': 'ערב פסח',
-  '2027-04-22': 'פסח (יום א\')',
-  '2027-04-27': 'ערב שביעי של פסח',
-  '2027-04-28': 'פסח (שביעי)',
-  '2027-05-12': 'יום העצמאות',
-  '2027-06-10': 'ערב שבועות',
-  '2027-06-11': 'שבועות',
-  '2027-10-01': 'ערב ראש השנה',
-  '2027-10-02': 'ראש השנה א\'',
-  '2027-10-03': 'ראש השנה ב\'',
-  '2027-10-10': 'ערב יום כיפור',
-  '2027-10-11': 'יום כיפור',
-  '2027-10-15': 'ערב סוכות',
-  '2027-10-16': 'סוכות',
-  '2027-10-22': 'ערב שמחת תורה',
-  '2027-10-23': 'שמיני עצרת / שמחת תורה'
+‎  '2027-03-23': 'פורים',
+‎  '2027-04-21': 'ערב פסח',
+‎  '2027-04-22': 'פסח (יום א\')',
+‎  '2027-04-27': 'ערב שביעי של פסח',
+‎  '2027-04-28': 'פסח (שביעי)',
+‎  '2027-05-12': 'יום העצמאות',
+‎  '2027-06-10': 'ערב שבועות',
+‎  '2027-06-11': 'שבועות',
+‎  '2027-10-01': 'ערב ראש השנה',
+‎  '2027-10-02': 'ראש השנה א\'',
+‎  '2027-10-03': 'ראש השנה ב\'',
+‎  '2027-10-10': 'ערב יום כיפור',
+‎  '2027-10-11': 'יום כיפור',
+‎  '2027-10-15': 'ערב סוכות',
+‎  '2027-10-16': 'סוכות',
+‎  '2027-10-22': 'ערב שמחת תורה',
+‎  '2027-10-23': 'שמיני עצרת / שמחת תורה'
 };
 
-// --- טיפול במצב לילה (Theme Toggle) ---
+‎// --- טיפול במצב לילה (Theme Toggle) ---
 const themeToggleBtn = document.getElementById('theme-toggle-fab');
 const currentTheme = localStorage.getItem('flex_theme') || 'light';
 
@@ -1199,12 +1200,6 @@ function startAdminSession() {
   authScreen.style.display = 'none';
   adminScreen.style.display = 'block';
   loadAdminUsers();
-}
-
-if (currentUser === 'admin') {
-  startAdminSession();
-} else if (currentUser) {
-  startSession(currentUser);
 }
 
 document.getElementById('adm-btn-update-admin-pass').addEventListener('click', () => {
@@ -1980,7 +1975,7 @@ function renderRows(){
   });
   const count = workingDaysCount.length;
 
-  // במובייל בלבד: מציג כרטיסייה פעילה (כניסה ללא יציאה) בראש הרשימה
+‎  // במובייל בלבד: מציג כרטיסייה פעילה (כניסה ללא יציאה) בראש הרשימה
   const rowsToRender = isMobile
     ? [...rows.filter(isActiveShiftRow), ...rows.filter(r => !isActiveShiftRow(r))]
     : rows;
@@ -2417,7 +2412,7 @@ function executeArchive(includeDeficitAsVacation) {
   recalcAndSave();
 }
 
-// --- טיימר משמרת פעילה מיועל ---
+‎// --- טיימר משמרת פעילה מיועל ---
 if(timerInterval) clearInterval(timerInterval);
 timerInterval = setInterval(() => {
   if (!currentUser || currentUser === 'admin') return;
@@ -3026,8 +3021,8 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
   const s = getSettings();
   const cycleName = getCycleName(rows) || 'דוח';
   const excelData = [
-    [`דוח שעות - Flex Reporter (${currentUser}) - ${cycleName}`, "", "", "", "", "", "", "", "", "", "", "", "", "", ""], [],
-    ["סטטוס", "תאריך", "יום בשבוע", "כניסה", "יציאה", "גולמי (ש')", "נטו יום (ש')", "רגילות (ש')", "125%", "150%", "קיזוז חוסר (ש')", "נסיעה", "ארוחה", "סה״כ יום (₪)"]
+‎    [`דוח שעות - Flex Reporter (${currentUser}) - ${cycleName}`, "", "", "", "", "", "", "", "", "", "", "", "", "", ""], [],
+‎    ["סטטוס", "תאריך", "יום בשבוע", "כניסה", "יציאה", "גולמי (ש')", "נטו יום (ש')", "רגילות (ש')", "125%", "150%", "קיזוז חוסר (ש')", "נסיעה", "ארוחה", "סה״כ יום (₪)"]
   ];
   const validRowsForDays = rows.filter(r => {
     if (r.isDeficitCompletion) return false;
@@ -3169,6 +3164,13 @@ document.getElementById('vac-credit').addEventListener('input', recalcAndSave);
 ['ios-set-dayStart','ios-set-dayEnd','ios-set-thuEnd'].forEach(id=>{
   document.getElementById(id).querySelectorAll('select').forEach(sel=>{ sel.addEventListener('change', ()=>{ recalcAndSave(); }); });
 });
+
+‎// אתחול סשן שמור רק לאחר שכל המשתנים והפונקציות נטענו
+if (currentUser === 'admin') {
+  startAdminSession();
+} else if (currentUser) {
+  startSession(currentUser);
+}
 </script>
 
 </body>
