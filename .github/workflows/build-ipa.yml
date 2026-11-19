@@ -1,0 +1,57 @@
+name: Build Unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Initialize Capacitor & Add iOS
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Set App Icon from Logo (if exists)
+        run: |
+          if [ -f "www/flex-reporter-logo.png" ]; then
+            sips -z 1024 1024 www/flex-reporter-logo.png --out ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          fi
+
+      - name: Build Unsigned .app with Xcode
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            CONFIGURATION_BUILD_DIR="$PWD/build"
+
+      - name: Package .ipa
+        run: |
+          mkdir -p Payload
+          cp -r build/App.app Payload/
+          zip -r FlexReporter.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlexReporter-IPA
+          path: FlexReporter.ipa
