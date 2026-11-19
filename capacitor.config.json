@@ -1,0 +1,8 @@
+{
+  "appId": "com.sharon.flexreporter",
+  "appName": "Flex Reporter",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
