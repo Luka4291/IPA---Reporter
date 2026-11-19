@@ -157,6 +157,12 @@
   .auth-btn.register:hover { background: var(--line); }
   .auth-error { color: var(--rust); font-size: 13px; min-height: 20px; margin-bottom: 12px; font-weight: 500; }
 
+  .remember-me-label {
+    display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+    font-size: 13px; color: var(--text-dim); margin-bottom: 16px;
+    cursor: pointer; user-select: none;
+  }
+
   #app-screen, #admin-screen { display: none; padding: 20px 20px 80px; }
   .wrap{max-width:1650px;margin:0 auto;position:relative;}
   
@@ -590,6 +596,10 @@
     <div class="auth-error" id="auth-error-msg"></div>
     <input type="text" class="auth-input" id="auth-username" placeholder="שם משתמש" autocomplete="username">
     <input type="password" class="auth-input" id="auth-password" placeholder="סיסמה" autocomplete="current-password">
+    <label class="remember-me-label">
+      <input type="checkbox" id="auth-remember" checked>
+      <span>זכור אותי במכשיר זה</span>
+    </label>
     <button class="auth-btn login" id="btn-login">התחברות</button>
     <button class="auth-btn register" id="btn-register">הרשמה כמשתמש חדש</button>
   </div>
@@ -1055,7 +1065,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-let currentUser = sessionStorage.getItem('flex_logged_in_user');
+let currentUser = localStorage.getItem('flex_logged_in_user') || sessionStorage.getItem('flex_logged_in_user');
 let unsubscribeRealtime = null;
 let isUpdatingFromRemote = false;
 let showOnlyAnomalies = false;
@@ -1063,6 +1073,17 @@ let anomalyBannerOpen = false;
 let rowToDeleteId = null; 
 let cachedSettings = null;
 let lastIsMobileView = window.innerWidth <= 900;
+
+function persistUserSession(username) {
+  const remember = document.getElementById('auth-remember')?.checked;
+  if (remember) {
+    localStorage.setItem('flex_logged_in_user', username);
+    sessionStorage.removeItem('flex_logged_in_user');
+  } else {
+    sessionStorage.setItem('flex_logged_in_user', username);
+    localStorage.removeItem('flex_logged_in_user');
+  }
+}
 
 function getCycleDateFor(dateObj) {
   let y = dateObj.getFullYear();
@@ -1092,6 +1113,7 @@ async function handleLogin() {
   if(!u || !p) return showError('יש להזין שם משתמש וסיסמה');
   
   if (u === 'admin' && p === adminPassword) {
+    persistUserSession('admin');
     startAdminSession();
     return;
   }
@@ -1103,6 +1125,7 @@ async function handleLogin() {
     if(userDoc.data().password !== p) return showError('סיסמה שגויה');
     
     showError('');
+    persistUserSession(u);
     startSession(u);
   } catch(err) {
     showError('שגיאה בתקשורת מול הענן');
@@ -1144,6 +1167,7 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     });
     
     showError('');
+    persistUserSession(u);
     startSession(u);
   } catch(err) {
     showError('שגיאה ביצירת החשבון בענן');
@@ -1151,18 +1175,19 @@ document.getElementById('btn-register').addEventListener('click', async () => {
 });
 
 document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('flex_logged_in_user');
   sessionStorage.removeItem('flex_logged_in_user');
   window.location.reload(); 
 });
 
 document.getElementById('btn-admin-logout').addEventListener('click', () => {
+  localStorage.removeItem('flex_logged_in_user');
   sessionStorage.removeItem('flex_logged_in_user');
   window.location.reload();
 });
 
 function startSession(username) {
   currentUser = username;
-  sessionStorage.setItem('flex_logged_in_user', username);
   document.getElementById('display-username').textContent = `שלום, ${username}`;
   authScreen.style.display = 'none';
   appScreen.style.display = 'block';
@@ -1171,7 +1196,6 @@ function startSession(username) {
 
 function startAdminSession() {
   currentUser = 'admin';
-  sessionStorage.setItem('flex_logged_in_user', 'admin');
   authScreen.style.display = 'none';
   adminScreen.style.display = 'block';
   loadAdminUsers();
