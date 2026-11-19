@@ -1,0 +1,3067 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flex Reporter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0071e3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Flex Reporter">
+<link rel="apple-touch-icon" href="flex-reporter-logo.png">
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<style>
+  :root {
+    --bg: #f5f6f8; 
+    --card-bg: #ffffff; 
+    --text: #1d1d1f; 
+    --text-dim: #6e6e73;
+    --line: #e5e5ea; 
+    --accent: #0071e3; 
+    --accent-hover: #0077ed; 
+    --gold: #9a7400; 
+    --teal: #007d91; 
+    --rust: #d70015; 
+    --input-bg: #f2f2f7;
+    --hover-row: rgba(0, 113, 227, 0.035);
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.055);
+    --radius: 12px;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f1012; 
+    --card-bg: #1a1b1e; 
+    --text: #f0f0f5; 
+    --text-dim: #9a9aa2;
+    --line: #2c2d32; 
+    --accent: #2997ff; 
+    --accent-hover: #5bb0ff; 
+    --gold: #ffd60a; 
+    --teal: #64d2ff; 
+    --rust: #ff453a; 
+    --input-bg: #25262b;
+    --hover-row: rgba(41, 151, 255, 0.06);
+    --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); 
+    font-family:'Google Sans', 'Roboto', 'Assistant', sans-serif; 
+    min-height:100vh; padding:0; -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* מספרים יציבים שאינם קופצים בשינוי */
+  .strip .val,
+  .dashboard-stat-val,
+  .computed,
+  .timer-badge,
+  .target-time-badge,
+  .dist-val,
+  .brow .amt,
+  .active-shift-details strong,
+  .ios-time-picker select {
+    font-variant-numeric: tabular-nums;
+  }
+  
+  input[type=date] {
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    cursor: pointer !important;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  input[type=date]::-webkit-calendar-picker-indicator {
+    cursor: pointer !important;
+    opacity: 1 !important;
+    display: block !important;
+  }
+
+  [data-theme="dark"] .custom-date-trigger, 
+  [data-theme="dark"] input[type=date] {
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] .app-logo {
+    mix-blend-mode: normal !important;
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  [data-theme="dark"] .sticky-zone {
+    background: rgba(15, 16, 18, 0.88);
+  }
+
+  [data-theme="dark"] .strip, 
+  [data-theme="dark"] .active-shift-banner {
+    background: rgba(26, 27, 30, 0.94);
+  }
+
+  [data-theme="dark"] .anomaly-filter-btn {
+    background: #25262b;
+    color: #f0f0f5;
+  }
+
+  #auth-screen {
+    position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; padding: 20px;
+  }
+  .auth-box {
+    background: var(--card-bg); padding: 40px 30px; border-radius: 20px;
+    box-shadow: var(--shadow-md); width: 100%; max-width: 380px;
+    text-align: center; border: 1px solid var(--line);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  .auth-box .app-logo { 
+    width: 100%; 
+    max-width: 150px; 
+    height: auto; 
+    margin: 0 auto 20px auto; 
+  }
+
+  .main-header .app-logo { 
+    width: 100%;
+    max-width: 130px; 
+    height: auto; 
+    margin: 0 auto 8px auto; 
+  }
+  
+  .auth-box input.auth-input {
+    width: 100%; margin-bottom: 14px; padding: 12px 14px; font-size: 14px;
+    background: var(--input-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.3s ease; font-family: inherit; direction: rtl; color: var(--text);
+  }
+  .auth-box input.auth-input:focus { outline: none; border-color: var(--accent); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12); }
+  .auth-btn {
+    width: 100%; padding: 12px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: background-color 0.15s ease, transform 0.1s ease; font-family: inherit; margin-bottom: 10px;
+  }
+  .auth-btn:active { transform: scale(0.98); }
+  .auth-btn.login { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(0, 113, 227, 0.22); }
+  .auth-btn.login:hover { background: var(--accent-hover); }
+  .auth-btn.register { background: var(--input-bg); color: var(--text); border: 1px solid var(--line); }
+  .auth-btn.register:hover { background: var(--line); }
+  .auth-error { color: var(--rust); font-size: 13px; min-height: 20px; margin-bottom: 12px; font-weight: 500; }
+
+  #app-screen, #admin-screen { display: none; padding: 20px 20px 80px; }
+  .wrap{max-width:1650px;margin:0 auto;position:relative;}
+  
+  .main-header { text-align: center; margin-bottom: 24px; margin-top: 10px; position: relative; }
+  
+  .user-badge { position: absolute; top: 0; left: 0; display: flex; align-items: center; gap: 12px; }
+  .user-badge span { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+  .logout-btn {
+    background: transparent; color: var(--rust); border: 1px solid rgba(215,0,21,0.25); padding: 6px 14px;
+    border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+  .logout-btn:hover { background: rgba(215,0,21,0.07); }
+  .logout-btn:active { transform: scale(0.96); }
+
+  .sticky-zone {
+    position: sticky; top: 0; z-index: 50; display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;
+    background: rgba(245, 246, 248, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    padding: 10px 0;
+    transition: background-color 0.3s ease;
+  }
+
+  .strip{
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border:1px solid var(--line); border-radius: 18px; padding: 16px 20px; display:flex; overflow:hidden;
+    box-shadow: var(--shadow-md);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  [data-theme="dark"] .strip {
+    background: linear-gradient(180deg, rgba(30, 32, 36, 0.96) 0%, rgba(24, 25, 29, 0.96) 100%);
+  }
+  .strip .cell{flex:1;text-align:center;padding:0 12px;position:relative;}
+  .strip .cell:not(:last-child)::after{content:"";position:absolute;left:0;top:18%;bottom:18%;width:0;border-right:1px solid var(--line);}
+  .strip .lbl{font-size:11px;color:var(--text-dim);letter-spacing:0.3px;margin-bottom:6px;font-weight:500;text-transform:uppercase;}
+  .strip .val{font-family:inherit;font-size:19px;font-weight:700;color:var(--text);}
+  .strip .val.gross{color:var(--gold);}
+  .strip .val.ded{color:var(--rust);}
+  .strip .val.net{color:var(--teal);font-size:23px;}
+
+  .active-shift-banner {
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1.5px solid rgba(0, 113, 227, 0.45); border-radius: 14px; padding: 12px 18px;
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    box-shadow: 0 8px 24px rgba(0, 113, 227, 0.14); color: var(--accent);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  .active-pulse {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+    animation: pulse 1.5s infinite; flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(0, 113, 227, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 113, 227, 0); }
+  }
+  .active-shift-details {
+    display: flex; gap: 18px; font-size: 14px; font-weight: 500; flex-wrap: wrap; justify-content: center; align-items: center;
+  }
+  .active-shift-countdown strong { font-family: monospace; font-size: 15px; font-weight: 700; letter-spacing: 0.5px;}
+  .active-shift-details strong { color: var(--accent); filter: brightness(0.8); }
+  [data-theme="dark"] .active-shift-details strong { filter: brightness(1.2); }
+
+  .dashboard-widget {
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--input-bg) 100%);
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .dashboard-title { font-size: 15px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .dashboard-stat-card {
+    background: var(--card-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 12px; text-align: center;
+    box-shadow: var(--shadow-sm); transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .dashboard-stat-card:hover { transform: translateY(-1px); border-color: rgba(0, 113, 227, 0.3); }
+  .dashboard-stat-lbl { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  .dashboard-stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+  
+  .distribution-section { background: var(--card-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; }
+  .distribution-title { font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; }
+  .dist-row { display: flex; align-items: center; gap: 14px; margin-bottom: 9px; font-size: 12px; }
+  .dist-row:last-child { margin-bottom: 0; }
+  .dist-label { width: 75px; font-weight: 500; color: var(--text-dim); text-align: left; }
+  .dist-bar-bg { flex: 1; height: 8px; background: var(--input-bg); border-radius: 99px; overflow: hidden; }
+  .dist-bar-fill { height: 100%; border-radius: 99px; transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+  .dist-val { width: 55px; text-align: left; font-family: monospace; font-weight: 600; color: var(--text); }
+
+  .card{
+    background:var(--card-bg); border:1px solid var(--line); border-radius:18px; padding:26px; margin-bottom:24px; overflow-x:auto;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  .card h2{font-size:16px;font-weight:700;margin:0 0 20px;color:var(--text);display:flex;align-items:center;gap:10px;letter-spacing:-.2px;}
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block; box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);}
+
+  .anomaly-banner {
+    background: rgba(255, 149, 0, 0.08); border: 1px solid rgba(255, 149, 0, 0.28);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px;
+    font-size: 13px; font-weight: 500; color: #9c4100; cursor: pointer; transition: background-color 0.15s ease;
+  }
+  [data-theme="dark"] .anomaly-banner { color: #ffb340; }
+  .anomaly-banner:hover { background: rgba(255, 149, 0, 0.13); }
+  .anomaly-banner.ok { background: rgba(52, 199, 89, 0.07); border-color: rgba(52, 199, 89, 0.25); color: #0b6623; cursor: default; }
+  [data-theme="dark"] .anomaly-banner.ok { color: #4cd964; }
+  .anomaly-header-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .anomaly-details-list {
+    margin-top: 12px; border-top: 1px solid rgba(255, 149, 0, 0.2); padding-top: 10px;
+    display: flex; flex-direction: column; gap: 6px; font-size: 13px;
+  }
+  .anomaly-item-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+  
+  .anomaly-filter-btn {
+    background: #ffffff; border: 1px solid var(--line); padding: 6px 14px; color: var(--text);
+    border-radius: var(--radius); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+  .anomaly-filter-btn:hover { background: var(--input-bg); }
+  .anomaly-filter-btn:active { transform: scale(0.97); }
+
+  .desktop-table-container { display: block; width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:center; font-weight:600; color:var(--text-dim); font-size:11.5px;
+    padding:13px 6px; border-bottom:1px solid var(--line); white-space:nowrap;
+    background: var(--input-bg);
+  }
+  tbody tr { transition: background-color 0.15s ease; }
+  tbody tr:hover { background-color: var(--hover-row); }
+  tbody tr:last-child td { border-bottom: none; }
+  td{padding:11px 6px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle;}
+  
+  th:last-child, td:last-child { width: 50px; min-width: 50px; padding-left: 10px; padding-right: 10px; }
+
+  .mobile-cards-container { display: none; flex-direction: column; gap: 14px; }
+
+  @media (max-width: 900px) {
+    .desktop-table-container { display: none !important; }
+    .mobile-cards-container { display: flex !important; }
+    .mobile-calendar-nav { display: flex !important; }
+    .card { padding: 16px !important; border-radius: 16px !important; }
+    .strip { padding: 12px 6px !important; border-radius: 14px !important; }
+    .strip .cell { padding: 0 4px !important; }
+    .strip .val { font-size: 15px !important; }
+    .strip .val.net { font-size: 17.5px !important; }
+    .strip .lbl { font-size: 9.5px !important; }
+    .quick-time-btn { padding: 7px 11px !important; font-size: 12px !important; border-radius: 8px !important; }
+    .mobile-cal-btn { padding: 9px 14px !important; }
+  }
+
+  .mobile-day-card {
+    background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px;
+    padding: 15px; display: flex; flex-direction: column; gap: 11px;
+    box-shadow: var(--shadow-sm);
+  }
+  .mobile-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+  .mobile-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .mobile-card-row .label { color: var(--text-dim); font-weight: 500; }
+  .mobile-time-group { display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); }
+
+  .mobile-calendar-nav {
+    display: none; align-items: center; justify-content: space-between;
+    background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 18px; font-weight: 600; font-size: 14.5px; color: var(--text);
+    box-shadow: var(--shadow-sm);
+  }
+  .mobile-cal-btn {
+    background: var(--input-bg); border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text);
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+  .mobile-cal-btn:hover { background: var(--line); }
+  .mobile-cal-btn:active { transform: scale(0.95); }
+
+  .custom-date-trigger {
+    background: var(--input-bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; font-weight: 500;
+    text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    transition: border-color 0.15s ease, background-color 0.15s ease; min-width: 130px;
+    direction: ltr; color-scheme: light;
+  }
+  .custom-date-trigger:hover { border-color: var(--accent); background: var(--card-bg); }
+
+  .row-vacation-card { background-color: rgba(215, 0, 21, 0.035) !important; border-color: rgba(215, 0, 21, 0.22) !important; }
+  [data-theme="dark"] .row-vacation-card { background-color: rgba(255, 69, 58, 0.09) !important; border-color: rgba(255, 69, 58, 0.3) !important; }
+  .row-vacation-card .custom-date-trigger, .row-vacation-card .ios-time-picker select { color: #b30011 !important; }
+  [data-theme="dark"] .row-vacation-card .custom-date-trigger, [data-theme="dark"] .row-vacation-card .ios-time-picker select { color: #ff6961 !important; }
+
+  .row-sick-card { background-color: rgba(40, 167, 69, 0.045) !important; border-color: rgba(40, 167, 69, 0.25) !important; }
+  [data-theme="dark"] .row-sick-card { background-color: rgba(48, 209, 88, 0.09) !important; border-color: rgba(48, 209, 88, 0.3) !important; }
+  .row-sick-card .custom-date-trigger, .row-sick-card .ios-time-picker select { color: #1e7e34 !important; }
+  [data-theme="dark"] .row-sick-card .custom-date-trigger, [data-theme="dark"] .row-sick-card .ios-time-picker select { color: #32d74b !important; }
+
+  .add-row.holiday { background: rgba(154, 116, 0, 0.1); color: var(--gold); border: 1px solid rgba(154, 116, 0, 0.3); }
+  [data-theme="dark"] .add-row.holiday { color: #ffd60a; }
+  .add-row.holiday:hover { background: rgba(154, 116, 0, 0.18); }
+
+  .row-holiday-card { background-color: rgba(154, 116, 0, 0.045) !important; border-color: rgba(154, 116, 0, 0.25) !important; }
+  [data-theme="dark"] .row-holiday-card { background-color: rgba(255, 214, 10, 0.09) !important; border-color: rgba(255, 214, 10, 0.3) !important; }
+  .row-holiday-card .custom-date-trigger, .row-holiday-card .ios-time-picker select { color: #9a7400 !important; }
+  [data-theme="dark"] .row-holiday-card .custom-date-trigger, [data-theme="dark"] .row-holiday-card .ios-time-picker select { color: #ffd60a !important; }
+
+  input[type=text]:not(.auth-input), input[type=password]:not(.auth-input), input[type=number], select{
+    width:115px; background:var(--input-bg); border:1px solid var(--line); color:var(--text);
+    border-radius:8px; padding:8px 4px; font-family:inherit; font-size:13px; text-align:center;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.3s ease; display:inline-block; direction:ltr;
+  }
+  input[type=text]:not(.auth-input):focus, input[type=password]:not(.auth-input):focus, input[type=number]:focus, select:focus{
+    outline:none; border-color:var(--accent); background:var(--card-bg); box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+  }
+
+  .ios-time-picker {
+    display: inline-flex; align-items: center; gap: 2px; background: var(--input-bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 5px; width: 105px;
+    justify-content: center; direction: ltr; position: relative; z-index: 10;
+    transition: border-color 0.15s ease;
+  }
+  .ios-time-picker:focus-within { border-color: var(--accent); background: var(--card-bg); }
+  .ios-time-picker select { background: transparent; border: none; font-family: inherit; font-size: 12.5px; font-weight: 500; text-align: center; width: auto; padding: 4px 1px; cursor: pointer; color: var(--text); box-shadow: none !important; }
+  .ios-time-picker select:focus { outline: none; color: var(--accent); }
+  
+  .quick-time-btn {
+    padding: 5px 8px; border-radius: 7px; border: none; font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: background-color 0.15s ease, transform 0.1s ease; white-space: nowrap; margin-right: 2px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .quick-time-btn:active { transform: scale(0.94); }
+  .quick-time-btn.in { background: rgba(0, 113, 227, 0.12); color: var(--accent); border: 1px solid rgba(0, 113, 227, 0.3); }
+  .quick-time-btn.in:hover { background: rgba(0, 113, 227, 0.22); }
+  .quick-time-btn.out { background: rgba(40, 167, 69, 0.12); color: #1e7e34; border: 1px solid rgba(40, 167, 69, 0.3); }
+  [data-theme="dark"] .quick-time-btn.out { color: #32d74b; }
+  .quick-time-btn.out:hover { background: rgba(40, 167, 69, 0.22); }
+
+  .date-cell-wrapper { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .weekday-tag-inline { font-size: 14.5px; color: var(--accent); font-weight: 700; min-width: 22px; text-align: center; }
+
+  input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer;border-radius:4px; position: relative; z-index: 10;}
+  .computed{font-family:inherit;font-size:12.5px;color:var(--text-dim);font-weight:400;}
+  .computed.hl{color:var(--text);font-weight:600;}
+  .computed.ot{color:var(--rust);font-weight:600;}
+  
+  .timer-badge{
+    font-family:monospace; font-size:12px; background:rgba(215,0,21,0.07); color:var(--rust);
+    padding:4px 9px; border-radius:7px; font-weight:600; display:inline-block; direction:ltr; min-width:82px; text-align:center;
+  }
+  .timer-badge.finished { font-family:inherit; background:var(--input-bg); color:var(--text-dim); font-weight:500; }
+
+  .target-time-badge{font-family:monospace;font-size:11.5px;background:rgba(0,130,150,0.08);color:var(--teal);padding:4px 9px;border-radius:7px;font-weight:600;display:inline-block;direction:ltr;}
+  
+  .row-del{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:15px;padding:6px;border-radius:8px;transition:color 0.15s ease, background-color 0.15s ease; position: relative; z-index: 10; display:flex; align-items:center; justify-content:center; margin:0 auto;}
+  .row-del:hover{color:var(--rust); background: rgba(215,0,21,0.08);}
+  
+  .actions-container { display: flex; gap: 10px; margin-top: 22px; align-items: center; flex-wrap: wrap; }
+  .add-row{
+    background: var(--accent); border: none; color: #ffffff; padding: 10px 18px; border-radius: var(--radius);
+    cursor: pointer; font-family: inherit; font-weight: 500; font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: background-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .add-row:hover{ background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+  .add-row:active{ transform: scale(0.97); }
+  .add-row.vacation{ background: var(--input-bg); color: var(--text); border: 1px solid var(--line); box-shadow: none; }
+  .add-row.vacation:hover{ background: var(--line); }
+  .add-row.sick{ background: rgba(40,167,69,0.1); color: #1e7e34; border: 1px solid rgba(40,167,69,0.3); box-shadow: none; }
+  [data-theme="dark"] .add-row.sick { color: #32d74b; }
+  .add-row.sick:hover{ background: rgba(40,167,69,0.18); }
+  .add-row.week{ background: var(--input-bg); color: var(--text); border: 1px solid var(--line); box-shadow: none; }
+  .add-row.week:hover{ background: var(--line); }
+  .add-row.month{ background: var(--teal); color: #ffffff; }
+  .add-row.month:hover{ filter: brightness(0.92); background: var(--teal); }
+  .add-row.archive-btn{ background: #5856d6; color: #ffffff; }
+  .add-row.archive-btn:hover{ filter: brightness(0.92); background: #5856d6; }
+  .add-row.backup{ background: #34c759; color: #ffffff; }
+  .add-row.backup:hover{ filter: brightness(0.92); background: #34c759; }
+  .add-row.import { background: #5856d6; color: #ffffff; }
+  .add-row.import:hover{ filter: brightness(0.92); background: #5856d6; }
+  .add-row.excel{ background: #107c41; color: #ffffff; }
+  .add-row.excel:hover{ filter: brightness(0.92); background: #107c41; }
+  .add-row.html-btn { background: #d70015; color: #ffffff; }
+  .add-row.html-btn:hover { filter: brightness(0.92); background: #d70015; }
+
+  .archive-item-wrapper { display: flex; gap: 8px; width: 100%; max-width: 250px; flex-grow: 1; }
+  .archive-item-wrapper .add-row { flex: 1; margin: 0; }
+  .archive-item-wrapper .del-arc { background: rgba(215,0,21,0.06); color: var(--rust); border: 1px solid rgba(215,0,21,0.2); border-radius: var(--radius); padding: 0 14px; cursor: pointer; transition: 0.15s; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .archive-item-wrapper .del-arc:hover { background: rgba(215,0,21,0.12); }
+  @media (max-width: 768px) {
+    .archive-item-wrapper { max-width: 100%; }
+  }
+
+  .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px 16px;}
+  .field{width:160px;margin:0 auto;}
+  .field label{ display:block; font-size:11px; color:var(--text-dim); margin-bottom:6px; font-weight:500; width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:right; }
+  .field .unit{color:var(--text-dim);font-size:10px;margin-right:2px;}
+
+  .breakdown{display:flex;flex-direction:column;gap:0;}
+  .brow{display:flex;justify-content:space-between;font-size:13.5px;padding:12px 6px;border-bottom:1px solid var(--line); min-height:42px; transition: background-color 0.15s ease; border-radius: 6px;}
+  .brow:hover { background-color: var(--hover-row); }
+  .brow.total{border-top:1.5px solid var(--text);border-bottom:none;margin-top:8px;padding-top:14px;font-weight:700;font-size:16px;color:var(--text); min-height:48px; border-radius: 0;}
+  .brow.total:hover { background-color: transparent; }
+  .brow .amt{font-family:inherit;font-weight:600;}
+  .brow .plus{color:#0b6623;}
+  [data-theme="dark"] .brow .plus { color: #32d74b; }
+  .brow .minus{color:var(--rust);}
+
+  .footer-copyright{ text-align:center; font-size:11px; color:var(--text-dim); margin-top:40px; font-weight:400; }
+
+  details summary{cursor:pointer;color:var(--text-dim);font-size:13.5px;padding:4px 0;font-weight:500;transition:color 0.15s ease;}
+  details summary:hover{color:var(--text);}
+  details[open] summary{color:var(--accent);font-weight:600; margin-bottom:4px;}
+  .status{font-size:11.5px;color:var(--text-dim);text-align:center;margin-top:14px;min-height:16px;font-weight:500;}
+  
+  .admin-form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+  .admin-field { display: flex; flex-direction: column; gap: 6px; }
+  .admin-field label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .admin-field input { width: 100%; }
+
+  #theme-toggle-fab {
+    position: fixed; bottom: 20px; left: 20px; z-index: 10000; 
+    background: var(--card-bg); color: var(--text); border: 1px solid var(--line); 
+    border-radius: 50%; width: 46px; height: 46px; cursor: pointer; 
+    display: flex; align-items: center; justify-content: center; font-size: 20px; 
+    box-shadow: var(--shadow-md); transition: background 0.3s, transform 0.2s, color 0.3s;
+  }
+  #theme-toggle-fab:hover { transform: scale(1.08); }
+  #theme-toggle-fab:active { transform: scale(0.95); }
+
+  /* מודלים עם אנימציית כניסה חלקה */
+  @keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes modalPopIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  #confirm-modal, #archive-modal, #sick-modal, #holiday-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px;
+    animation: modalFadeIn 0.18s ease-out;
+  }
+  .confirm-box, .archive-box, .sick-box, .holiday-box {
+    background: var(--card-bg); border: 1px solid var(--line); border-radius: 18px;
+    padding: 26px; width: 100%; text-align: center;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.2);
+    animation: modalPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .confirm-box { max-width: 330px; }
+  .archive-box, .sick-box, .holiday-box { max-width: 370px; }
+
+  .confirm-title { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .confirm-text { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btn { flex: 1; padding: 11px; border-radius: 10px; border: none; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+  .confirm-btn:hover { filter: brightness(0.95); }
+  .confirm-btn:active { transform: scale(0.97); }
+  .confirm-btn.cancel { background: var(--input-bg); color: var(--text); border: 1px solid var(--line); }
+  .confirm-btn.delete { background: var(--rust); color: white; }
+</style>
+</head>
+<body>
+
+<button id="theme-toggle-fab" title="החלף מצב תצוגה (יום/לילה)">🌙</button>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <img src="flex-reporter-logo.png" alt="Flex Reporter Logo" class="app-logo">
+    <div class="auth-error" id="auth-error-msg"></div>
+    <input type="text" class="auth-input" id="auth-username" placeholder="שם משתמש" autocomplete="username">
+    <input type="password" class="auth-input" id="auth-password" placeholder="סיסמה" autocomplete="current-password">
+    <button class="auth-btn login" id="btn-login">התחברות</button>
+    <button class="auth-btn register" id="btn-register">הרשמה כמשתמש חדש</button>
+  </div>
+</div>
+
+<div id="confirm-modal">
+  <div class="confirm-box">
+    <div class="confirm-title">מחיקת יום עבודה</div>
+    <div class="confirm-text" id="confirm-msg">האם אתה בטוח לחלוטין שברצונך למחוק יום זה מהדוח?</div>
+    <div class="confirm-btns">
+      <button class="confirm-btn cancel" id="btn-cancel-delete">ביטול</button>
+      <button class="confirm-btn delete" id="btn-confirm-delete">מחק לצמיתות</button>
+    </div>
+  </div>
+</div>
+
+<div id="archive-modal">
+  <div class="archive-box">
+    <div class="confirm-title" style="color:var(--accent);">סגירת חודש לארכיון</div>
+    <div class="confirm-text" id="archive-question-text">האם להשלים את מונה הקיזוז על ידי ימי חופש?</div>
+    <div class="confirm-btns">
+      <button class="confirm-btn cancel" id="btn-archive-no" style="background:var(--input-bg); color:var(--text);">לא</button>
+      <button class="confirm-btn delete" id="btn-archive-yes" style="background:var(--accent); color:white;">כן</button>
+    </div>
+  </div>
+</div>
+
+<div id="sick-modal">
+  <div class="sick-box">
+    <div class="confirm-title" style="color:#1e7e34;">הוספת ימי מחלה ברצף</div>
+    <div class="confirm-text">בחר תאריך התחלה ותאריך סיום למחלה (ניתן לבחור מספר ימים רצופים):</div>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px; direction:ltr;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--text-dim);">מתאריך:</span>
+        <input type="date" id="sick-start-date" class="custom-date-trigger">
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--text-dim);">עד תאריך:</span>
+        <input type="date" id="sick-end-date" class="custom-date-trigger">
+      </div>
+    </div>
+    <div class="confirm-btns">
+      <button class="confirm-btn cancel" id="btn-cancel-sick">ביטול</button>
+      <button class="confirm-btn delete" id="btn-confirm-sick" style="background:#28a745;">הוסף ימי מחלה</button>
+    </div>
+  </div>
+</div>
+
+<div id="holiday-modal">
+  <div class="holiday-box">
+    <div class="confirm-title" style="color:var(--gold);">הוספת יום חג / שבתון</div>
+    <div class="confirm-text">בחר תאריך והזן את שם החג (לדוגמה: בחירות):</div>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px; direction:ltr;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--text-dim);">תאריך:</span>
+        <input type="date" id="holiday-date" class="custom-date-trigger">
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:13px; color:var(--text-dim); direction:rtl;">שם החג:</span>
+        <input type="text" id="holiday-name" placeholder="לדוגמה: בחירות" style="width:130px; direction:rtl;">
+      </div>
+    </div>
+    <div class="confirm-btns">
+      <button class="confirm-btn cancel" id="btn-cancel-holiday">ביטול</button>
+      <button class="confirm-btn delete" id="btn-confirm-holiday" style="background:var(--gold); color:#fff;">הוסף חג</button>
+    </div>
+  </div>
+</div>
+
+<div id="admin-screen">
+  <div class="wrap">
+    <div class="main-header">
+      <img src="flex-reporter-logo.png" alt="Flex Reporter Logo" class="app-logo">
+      <h2 style="margin: 0; font-size: 16px; color: var(--text-dim); font-weight: 500;">פאנל ניהול - ADMIN</h2>
+      <div class="user-badge">
+        <span>מנהל מערכת</span>
+        <button class="logout-btn" id="btn-admin-logout">התנתק</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>שינוי סיסמה למנהל מערכת (Admin)</h2>
+      <div class="admin-form-group">
+        <div class="admin-field">
+          <label>סיסמה חדשה למנהל</label>
+          <input type="password" id="adm-new-admin-pass" placeholder="הכנס סיסמה חדשה">
+        </div>
+      </div>
+      <button class="add-row" id="adm-btn-update-admin-pass">עדכן סיסמת Admin</button>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot" style="background:var(--teal)"></span>גיבוי ושחזור כל נתוני המערכת</h2>
+      <div class="actions-container" style="margin-top: 0;">
+        <button class="add-row backup" id="btn-global-export">💾 גיבוי מערכת מלא (לכל המשתמשים)</button>
+        <button class="add-row import" id="btn-global-import">📂 שחזור מערכת מלא (לכל המשתמשים)</button>
+        <input type="file" id="globalImportFile" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>הוספת משתמש חדש עם הגדרות ברירת מחדל</h2>
+      <div class="admin-form-group">
+        <div class="admin-field">
+          <label>שם משתמש חדש</label>
+          <input type="text" id="adm-new-user" placeholder="שם משתמש">
+        </div>
+        <div class="admin-field">
+          <label>סיסמה</label>
+          <input type="text" id="adm-new-pass" placeholder="סיסמה">
+        </div>
+        <div class="admin-field">
+          <label>תעריף שעה רגילה (₪)</label>
+          <input type="number" step="0.01" id="adm-new-rate" placeholder="למשל 62.19">
+        </div>
+        <div class="admin-field">
+          <label>תעריף נסיעה ליום (₪)</label>
+          <input type="number" step="0.01" id="adm-new-travel" placeholder="למשל 32">
+        </div>
+      </div>
+      <button class="add-row" id="adm-btn-create">צור משתמש חדש</button>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot" style="background:var(--teal)"></span>ניהול משתמשים קיימים במערכת</h2>
+      <div class="desktop-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>שם משתמש</th>
+              <th>סיסמה נוכחית</th>
+              <th>שינוי סיסמה חדשה</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-copyright">
+      &copy; כל הזכויות שמורות ל - Sharon Levit &reg;
+    </div>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="wrap">
+    <div class="main-header">
+      <img src="flex-reporter-logo.png" alt="Flex Reporter Logo" class="app-logo">
+      <div class="user-badge">
+        <span id="display-username"></span>
+        <button class="logout-btn" id="btn-logout">התנתק</button>
+      </div>
+    </div>
+
+    <div class="sticky-zone">
+      <div class="strip">
+        <div class="cell"><div class="lbl">סה״כ שעות נטו</div><div class="val" id="s-hours">00:00</div></div>
+        <div class="cell"><div class="lbl">ברוטו</div><div class="val gross" id="s-gross">₪0.00</div></div>
+        <div class="cell"><div class="lbl">ניכויים מעובד</div><div class="val ded" id="s-ded">₪0.00</div></div>
+        <div class="cell"><div class="lbl">נטו לתשלום</div><div class="val net" id="s-net">₪0.00</div></div>
+      </div>
+      
+      <div id="active-shift-banner" class="active-shift-banner" style="display:none;">
+        <div class="active-pulse"></div>
+        <div class="active-shift-details">
+          <span>תאריך: <strong id="active-shift-date"></strong></span>
+          <span>כניסה: <strong id="active-shift-in"></strong></span>
+          <span class="active-shift-elapsed">זמן עבודה (רץ): <strong id="active-shift-elapsed-timer" style="color: var(--accent); font-family: monospace; font-size: 15px;"></strong></span>
+          <span class="active-shift-countdown">זמן תקני נותר: <strong id="active-shift-timer"></strong></span>
+          <span id="container-ot125" style="display:none; color: var(--text-dim);">ש"נ 125%: <strong id="active-shift-ot125" style="color: #ff9500; font-family: monospace; font-size: 15px;"></strong></span>
+          <span id="container-ot150" style="display:none; color: var(--text-dim);">ש"נ 150%: <strong id="active-shift-ot150" style="color: var(--rust); font-family: monospace; font-size: 15px;"></strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>מעקב ימי חופשה שנתי/חודשי</h2>
+      <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 0;">
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-lbl">יתרת חופשה קודמת (ש')</div>
+          <input type="number" step="0.01" id="vac-prev" value="-34.92" style="width:100%; font-weight:600; text-align:center;">
+        </div>
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-lbl">זיכוי חודשי קבוע (ש')</div>
+          <input type="number" step="0.01" id="vac-credit" value="11.90" style="width:100%; font-weight:600; text-align:center;">
+        </div>
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-lbl">ניצול החודש בפועל (ש')</div>
+          <div class="dashboard-stat-val" id="vac-used" style="color:var(--rust);">0.00</div>
+        </div>
+        <div class="dashboard-stat-card">
+          <div class="dashboard-stat-lbl">יתרה חדשה (ש')</div>
+          <div class="dashboard-stat-val" id="vac-new" style="color:var(--teal);">0.00</div>
+        </div>
+      </div>
+      <div style="font-size:11px; color:var(--text-dim); margin-top:10px; text-align:center;">
+        * מותר להיכנס למינוס עד 42 שעות חופש. בעת סגירת חודש יבוצעו חישוב וקיזוז מול מונה היתרות.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>ימי עבודה <span id="current-cycle-name" style="color:var(--accent); margin-right:8px; font-weight:600;"></span> <span id="archive-mode-indicator" style="color:var(--rust); font-size:12px; margin-right:10px; display:none;">(מצב עריכת ארכיון)</span></h2>
+      
+      <div class="dashboard-widget" id="monthly-dashboard-widget">
+        <div class="dashboard-header">
+          <div class="dashboard-title">סיכום חודשי - <span id="dash-cycle-title">חודש נוכחי</span></div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-lbl">ימי עבודה מדווחים</div>
+            <div class="dashboard-stat-val" id="dash-days-count">0</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-lbl">סה״כ שעות עבודה</div>
+            <div class="dashboard-stat-val" id="dash-total-hours">00:00</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-lbl">שעות נוספות</div>
+            <div class="dashboard-stat-val" id="dash-ot-hours" style="color:var(--teal);">00:00</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-lbl">מונה קיזוז (חוסר)</div>
+            <div class="dashboard-stat-val" id="dash-deficit-val" style="color:var(--rust); direction:ltr;">00:00</div>
+          </div>
+          <div class="dashboard-stat-card">
+            <div class="dashboard-stat-lbl">נטו משוער לתשלום</div>
+            <div class="dashboard-stat-val" id="dash-net-val" style="color:var(--gold);">₪0.00</div>
+          </div>
+        </div>
+        <div class="distribution-section">
+          <div class="distribution-title">התפלגות שעות עבודה</div>
+          <div class="dist-row">
+            <span class="dist-label">שעות רגילות</span>
+            <div class="dist-bar-bg"><div class="dist-bar-fill" id="bar-reg" style="width:0%; background:var(--accent);"></div></div>
+            <span class="dist-val" id="val-reg">00:00</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">שעות 125%</span>
+            <div class="dist-bar-bg"><div class="dist-bar-fill" id="bar-125" style="width:0%; background:#ff9500;"></div></div>
+            <span class="dist-val" id="val-125">00:00</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">שעות 150%</span>
+            <div class="dist-bar-bg"><div class="dist-bar-fill" id="bar-150" style="width:0%; background:var(--rust);"></div></div>
+            <span class="dist-val" id="val-150">00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="anomaly-banner-container"></div>
+
+      <div class="mobile-calendar-nav" id="mobile-cal-nav-bar">
+        <button class="mobile-cal-btn" id="cal-prev-month">←</button>
+        <span id="mobile-cal-title">אוגוסט 2026</span>
+        <div style="display:flex; gap:6px;">
+          <button class="mobile-cal-btn" id="cal-today" style="font-size:12px; padding:6px 10px;">היום</button>
+          <button class="mobile-cal-btn" id="cal-next-month">→</button>
+        </div>
+      </div>
+
+      <div class="desktop-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>סטטוס</th>
+              <th>תאריך</th>
+              <th>כניסה</th>
+              <th>יציאה</th>
+              <th>גולמי</th>
+              <th>נטו יום</th>
+              <th>רגילות</th>
+              <th>125%</th>
+              <th>150%</th>
+              <th>קיזוז חוסר (ש')</th>
+              <th>נסיעה</th>
+              <th>ארוחה</th>
+              <th>סה״כ יום ₪</th>
+              <th>שעת סיום יעד</th>
+              <th>זמן שנשאר למונה קיזוז</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rows-desktop"></tbody>
+        </table>
+      </div>
+
+      <div class="mobile-cards-container" id="rows-mobile"></div>
+
+      <div class="actions-container">
+        <button class="add-row" id="addRow">+ הוספת יום</button>
+        <button class="add-row vacation" id="addVacationRow">+ הוספת יום חופש</button>
+        <button class="add-row sick" id="addSickRow">+ הוספת ימי מחלה</button>
+        <button class="add-row holiday" id="btn-open-holiday-modal">🎉 הוסף חג/שבתון ידני</button>
+        <button class="add-row week" id="addWeekRow">+ הוספת שבוע חדש</button>
+        <button class="add-row month" id="addMonthRow">+ הוספת חודש חדש</button>
+        <button class="add-row archive-btn" id="btn-archive-month">📦 סגירת חודש לארכיון</button>
+        <button class="add-row excel" id="exportExcelBtn">📊 ייצוא ל־Excel</button>
+        <button class="add-row html-btn" id="exportHtmlBtn">🌐 שמור כ־HTML דוח מקורי</button>
+      </div>
+    </div>
+
+    <div class="card" id="archive-card" style="display:none;">
+      <h2><span class="dot" style="background:#5856d6"></span>ארכיון חודשים קודמים</h2>
+      <p style="font-size:12px; color:var(--text-dim); margin-top:-10px; margin-bottom:12px;">
+        לחיצה על חודש תשלוף אותו לטבלה הראשית לעריכה. החודש הפעיל יישמר ותוכל לחזור אליו בכל עת.
+      </p>
+      <div class="actions-container" id="archive-list" style="margin-top: 0;"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot" style="background:var(--teal)"></span>פירוט התשלום ועלות מעביד</h2>
+      <div class="breakdown" id="breakdown"></div>
+    </div>
+
+    <div class="card">
+      <details id="settingsBox">
+        <summary>⚙ הגדרות, בסיס חודשי, תעריפים ומס הכנסה (ניתן לערוך)</summary>
+        <div style="height:14px"></div>
+        <div class="settings-grid">
+          <div class="field"><label title="כניסה סטנדרטית">כניסה סטנדרטית</label>
+            <div class="ios-time-picker" id="ios-set-dayStart">
+              <select class="ios-h"></select><span>:</span><select class="ios-m"></select>
+            </div>
+          </div>
+          <div class="field"><label title="יציאה א׳-ד׳ (סוף יום רגיל)">יציאה א׳-ד׳ (סוף יום רגיל)</label>
+            <div class="ios-time-picker" id="ios-set-dayEnd">
+              <select class="ios-h"></select><span>:</span><select class="ios-m"></select>
+            </div>
+          </div>
+          <div class="field"><label title="יציאה ה׳ (סוף יום רגיל)">יציאה ה׳ (סוף יום רגיל)</label>
+            <div class="ios-time-picker" id="ios-set-thuEnd">
+              <select class="ios-h"></select><span>:</span><select class="ios-m"></select>
+            </div>
+          </div>
+          <div class="field"><label title="הפסקה לא משולמת דק'">הפסקה לא משולמת <span class="unit">דק'</span></label><input type="number" id="breakMin" value="15"></div>
+          
+          <div class="field"><label title="בסיס חודשי קבוע ₪">בסיס חודשי קבוע <span class="unit">₪</span></label><input type="number" step="0.01" id="baseMonthly" value="11319.40" placeholder="11319.40"></div>
+          <div class="field"><label title="תעריף נסיעה ליום ₪">תעריף נסיעה ליום <span class="unit">₪</span></label><input type="number" step="0.01" id="rateTravel" value="32.00" placeholder="32.00"></div>
+          <div class="field"><label title="ניכוי ארוחה ליום עבודה ₪">ניכוי ארוחה ליום <span class="unit">₪</span></label><input type="number" step="0.1" id="mealCost" value="9.50"></div>
+          <div class="field"><label title="גילום שווי סלולרי ₪">גילום שווי סלולרי <span class="unit">₪</span></label><input type="number" step="0.01" id="gelumPhone" value="" placeholder="0.00"></div>
+          <div class="field"><label title="גילום שווי ארוחות ליום ₪">גילום ארוחות יום <span class="unit">₪</span></label><input type="number" step="0.01" id="gelumMealPerDay" value="23.80"></div>
+          <div class="field"><label title="גילום שווי בריאות שיניים ₪">גילום ש. שיניים <span class="unit">₪</span></label><input type="number" step="0.01" id="gelumDental" value="" placeholder="0.00"></div>
+  
+          <div class="field"><label title="נקודות זיכוי (מס הכנסה)">נקודות זיכוי</label><input type="number" step="0.25" id="taxPoints" value="6.75" placeholder="6.75"></div>
+          <div class="field"><label title="שווי נקודת זיכוי ₪">שווי נקודת זיכוי <span class="unit">₪</span></label><input type="number" step="1" id="taxPointValue" value="242"></div>
+          <div class="field"><label title="פנסיה תגמולים - עובד %">פנסיה תגמ.- עובד <span class="unit">%</span></label><input type="number" step="0.01" id="pctPenEmp" value="6.00"></div>
+          <div class="field"><label title="קרן השתלמות - עובד %">קרן השתל.- עובד <span class="unit">%</span></label><input type="number" step="0.01" id="pctKerEmp" value="2.50"></div>
+          <div class="field"><label title="פנסיה תגמולים - מעסיק %">פנסיה תגמ.- מעס' <span class="unit">%</span></label><input type="number" step="0.01" id="pctPenEr" value="6.50"></div>
+          <div class="field"><label title="פנסיה פיצויים - מעסיק %">פנסיה פיצוי- מעס' <span class="unit">%</span></label><input type="number" step="0.01" id="pctSevEr" value="6.00"></div>
+          <div class="field"><label title="קרן השתלמות - מעסיק %">קרן השתל.- מעס' <span class="unit">%</span></label><input type="number" step="0.01" id="pctKerEr" value="5.00"></div>
+          <div class="field"><label title="ניכויים שונים קבועים ₪">ניכויים קבועים <span class="unit">₪</span></label><input type="number" step="0.01" id="fixedDed" value="" placeholder="0.00"></div>
+          <div class="field"><label title="בונוס NVIDIA קבוע ₪">בונוס NVIDIA קבוע <span class="unit">₪</span></label><input type="number" step="0.01" id="fixedNvidia" value="1200.00" placeholder="1200.00"></div>
+          <div class="field"><label title="פרמיה משתנה (שעות)">פרמיה משתנה <span class="unit">שעות</span></label><input type="number" step="0.5" id="variableBonus" value="" placeholder="0"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="footer-copyright">
+      &copy; כל הזכויות שמורות ל - Sharon Levit &reg;
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+// --- קונפיגורציית מס וביטוח לאומי (לעדכון שנתי מהיר) ---
+const TAX_CONFIG = {
+  incomeBrackets: [
+    { threshold: 46690, rate: 0.47 },
+    { threshold: 22440, rate: 0.35 },
+    { threshold: 16110, rate: 0.31 },
+    { threshold: 10060, rate: 0.20 },
+    { threshold: 7010,  rate: 0.14 },
+    { threshold: 0,     rate: 0.10 }
+  ],
+  pensionTaxCreditRate: 0.35,
+  blBracket: 7522,
+  niLowRate: 0.0040,
+  niHighRate: 0.0700,
+  healthLowRate: 0.0310,
+  healthHighRate: 0.0500,
+  standardMonthlyHours: 182
+};
+
+// --- לוח חגים וערבי חג (2026-2027) ---
+const ISRAELI_HOLIDAYS = {
+  // 2026
+  '2026-03-02': 'פורים',
+  '2026-03-31': 'ערב פסח',
+  '2026-04-01': 'פסח (יום א\')',
+  '2026-04-07': 'פסח (שביעי)',
+  '2026-04-21': 'יום העצמאות',
+  '2026-05-20': 'ערב שבועות',
+  '2026-05-21': 'שבועות',
+  '2026-09-11': 'ערב ראש השנה',
+  '2026-09-12': 'ראש השנה א\'',
+  '2026-09-13': 'ראש השנה ב\'',
+  '2026-09-20': 'ערב יום כיפור',
+  '2026-09-21': 'יום כיפור',
+  '2026-09-25': 'ערב סוכות',
+  '2026-09-26': 'סוכות',
+  '2026-10-02': 'שמיני עצרת / שמחת תורה',
+  // 2027
+  '2027-03-23': 'פורים',
+  '2027-04-21': 'ערב פסח',
+  '2027-04-22': 'פסח (יום א\')',
+  '2027-04-27': 'ערב שביעי של פסח',
+  '2027-04-28': 'פסח (שביעי)',
+  '2027-05-12': 'יום העצמאות',
+  '2027-06-10': 'ערב שבועות',
+  '2027-06-11': 'שבועות',
+  '2027-10-01': 'ערב ראש השנה',
+  '2027-10-02': 'ראש השנה א\'',
+  '2027-10-03': 'ראש השנה ב\'',
+  '2027-10-10': 'ערב יום כיפור',
+  '2027-10-11': 'יום כיפור',
+  '2027-10-15': 'ערב סוכות',
+  '2027-10-16': 'סוכות',
+  '2027-10-22': 'ערב שמחת תורה',
+  '2027-10-23': 'שמיני עצרת / שמחת תורה'
+};
+
+// --- טיפול במצב לילה (Theme Toggle) ---
+const themeToggleBtn = document.getElementById('theme-toggle-fab');
+const currentTheme = localStorage.getItem('flex_theme') || 'light';
+
+if (currentTheme === 'dark') {
+  document.documentElement.setAttribute('data-theme', 'dark');
+  themeToggleBtn.textContent = '☀️';
+}
+
+themeToggleBtn.addEventListener('click', () => {
+  let theme = document.documentElement.getAttribute('data-theme');
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('flex_theme', 'light');
+    themeToggleBtn.textContent = '🌙';
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('flex_theme', 'dark');
+    themeToggleBtn.textContent = '☀️';
+  }
+});
+
+// --- Firebase ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB8Y-T4JnuAYw7WVQSDdya_prBFCmKBSMM",
+  authDomain: "flex-reporter.firebaseapp.com",
+  projectId: "flex-reporter",
+  storageBucket: "flex-reporter.firebasestorage.app",
+  messagingSenderId: "275045505949",
+  appId: "1:275045505949:web:29a31da00f954d340b6d74",
+  measurementId: "G-0KDMVRSR6P"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentUser = sessionStorage.getItem('flex_logged_in_user');
+let unsubscribeRealtime = null;
+let isUpdatingFromRemote = false;
+let showOnlyAnomalies = false;
+let anomalyBannerOpen = false; 
+let rowToDeleteId = null; 
+let cachedSettings = null;
+let lastIsMobileView = window.innerWidth <= 900;
+
+function getCycleDateFor(dateObj) {
+  let y = dateObj.getFullYear();
+  let m = dateObj.getMonth();
+  if (dateObj.getDate() >= 21) {
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return new Date(y, m, 1);
+}
+
+let mobileViewDate = getCycleDateFor(new Date()); 
+let adminPassword = localStorage.getItem('flex_admin_pass') || 'admin';
+
+const authScreen = document.getElementById('auth-screen');
+const appScreen = document.getElementById('app-screen');
+const adminScreen = document.getElementById('admin-screen');
+const authError = document.getElementById('auth-error-msg');
+const userInp = document.getElementById('auth-username');
+const passInp = document.getElementById('auth-password');
+
+function showError(msg) { authError.textContent = msg; }
+
+async function handleLogin() {
+  const u = userInp.value.trim().toLowerCase();
+  const p = passInp.value;
+  if(!u || !p) return showError('יש להזין שם משתמש וסיסמה');
+  
+  if (u === 'admin' && p === adminPassword) {
+    startAdminSession();
+    return;
+  }
+
+  showError('מתחבר...');
+  try {
+    const userDoc = await db.collection('users').doc(u).get();
+    if(!userDoc.exists) return showError('שם משתמש לא קיים במערכת');
+    if(userDoc.data().password !== p) return showError('סיסמה שגויה');
+    
+    showError('');
+    startSession(u);
+  } catch(err) {
+    showError('שגיאה בתקשורת מול הענן');
+  }
+}
+
+document.getElementById('btn-login').addEventListener('click', handleLogin);
+
+[userInp, passInp].forEach(input => {
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleLogin();
+    }
+  });
+});
+
+document.getElementById('btn-register').addEventListener('click', async () => {
+  const u = userInp.value.trim().toLowerCase();
+  const p = passInp.value;
+  if(!u || !p) return showError('יש להזין שם משתמש וסיסמה');
+  if(p.length < 4) return showError('הסיסמה צריכה להיות לפחות 4 תווים');
+  if(u === 'admin') return showError('שם משתמש זה שמור למנהל המערכת');
+
+  showError('יוצר חשבון...');
+  try {
+    const userDoc = await db.collection('users').doc(u).get();
+    if(userDoc.exists) return showError('שם המשתמש כבר תפוס');
+
+    await db.collection('users').doc(u).set({
+      password: p,
+      rows: [],
+      archive: [],
+      activeDraft: null,
+      editingArchiveId: null,
+      vacationBalance: { prev: -34.92, credit: 11.9 },
+      settings: getSettings(true),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showError('');
+    startSession(u);
+  } catch(err) {
+    showError('שגיאה ביצירת החשבון בענן');
+  }
+});
+
+document.getElementById('btn-logout').addEventListener('click', () => {
+  sessionStorage.removeItem('flex_logged_in_user');
+  window.location.reload(); 
+});
+
+document.getElementById('btn-admin-logout').addEventListener('click', () => {
+  sessionStorage.removeItem('flex_logged_in_user');
+  window.location.reload();
+});
+
+function startSession(username) {
+  currentUser = username;
+  sessionStorage.setItem('flex_logged_in_user', username);
+  document.getElementById('display-username').textContent = `שלום, ${username}`;
+  authScreen.style.display = 'none';
+  appScreen.style.display = 'block';
+  loadAppForUser();
+}
+
+function startAdminSession() {
+  currentUser = 'admin';
+  sessionStorage.setItem('flex_logged_in_user', 'admin');
+  authScreen.style.display = 'none';
+  adminScreen.style.display = 'block';
+  loadAdminUsers();
+}
+
+if (currentUser === 'admin') {
+  startAdminSession();
+} else if (currentUser) {
+  startSession(currentUser);
+}
+
+document.getElementById('adm-btn-update-admin-pass').addEventListener('click', () => {
+  const newPass = document.getElementById('adm-new-admin-pass').value.trim();
+  if(!newPass || newPass.length < 4) {
+    alert('יש להזין סיסמה חדשה באורך של לפחות 4 תווים');
+    return;
+  }
+  adminPassword = newPass;
+  localStorage.setItem('flex_admin_pass', newPass);
+  alert('סיסמת מנהל המערכת (Admin) עודכנה בהצלחה!');
+  document.getElementById('adm-new-admin-pass').value = '';
+});
+
+document.getElementById('btn-global-export').addEventListener('click', async () => {
+  try {
+    const snapshot = await db.collection('users').get();
+    const backup = { usersDb: {}, userData: {} };
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      backup.usersDb[doc.id] = data.password;
+      backup.userData[doc.id] = { rows: data.rows || [], archive: data.archive || [], activeDraft: data.activeDraft || null, editingArchiveId: data.editingArchiveId || null, settings: data.settings || null, vacationBalance: data.vacationBalance || null };
+    });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `flex-full-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  } catch(e) { alert('שגיאה בייצוא הנתונים מהענן'); }
+});
+
+document.getElementById('btn-global-import').addEventListener('click', () => document.getElementById('globalImportFile').click());
+document.getElementById('globalImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(evt) {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (parsed.usersDb && parsed.userData) {
+        for (const u in parsed.usersDb) {
+          await db.collection('users').doc(u).set({
+            password: parsed.usersDb[u],
+            rows: parsed.userData[u]?.rows || [],
+            archive: parsed.userData[u]?.archive || [],
+            activeDraft: parsed.userData[u]?.activeDraft || null,
+            editingArchiveId: parsed.userData[u]?.editingArchiveId || null,
+            settings: parsed.userData[u]?.settings || null,
+            vacationBalance: parsed.userData[u]?.vacationBalance || { prev: -34.92, credit: 11.9 },
+            importedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+        alert('כל נתוני המערכת והמשתמשים שוחזרו בהצלחה לענן!');
+        loadAdminUsers();
+      } else { alert('קובץ לא תקין'); }
+    } catch(err) { alert('שגיאה בטעינת הקובץ'); }
+  };
+  reader.readAsText(file); e.target.value = '';
+});
+
+async function loadAdminUsers() {
+  const tbody = document.getElementById('admin-users-list');
+  tbody.innerHTML = '<tr><td colspan="4">טוען משתמשים מהענן...</td></tr>';
+  try {
+    const snapshot = await db.collection('users').get();
+    tbody.innerHTML = '';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const uId = doc.id;
+      if (uId === 'admin') return;
+
+      const isProtected = uId.toLowerCase().includes('שרון לויט') || uId.toLowerCase().includes('sharon levit');
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${uId}</strong></td>
+        <td>${data.password || ''}</td>
+        <td><input type="text" id="new-pass-${uId}" placeholder="סיסמה חדשה" style="width:110px;"></td>
+        <td>
+          <button class="add-row" style="padding:6px 12px; font-size:12px;" onclick="adminUpdatePassword('${uId}')">שמור סיסמה</button>
+          ${isProtected ? '<span style="color:var(--rust); font-size:11px; font-weight:600; margin-right:8px; display:inline-block;">🔒 משתמש מוגן ממחיקה</span>' : `<button class="logout-btn" style="padding:6px 12px;" onclick="adminDeleteUser('${uId}')">מחק משתמש</button>`}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="4">שגיאה בטעינת המשתמשים</td></tr>';
+  }
+}
+
+async function adminDeleteUser(userId) {
+  const isProtected = userId.toLowerCase().includes('שרון לויט') || userId.toLowerCase().includes('sharon levit');
+  if (isProtected) {
+    alert('שגיאה: משתמש זה מוגן ולא ניתן למחוק אותו מהמערכת!');
+    return;
+  }
+
+  if (confirm(`האם אתה בטוח שברצונך למחוק את המשתמש ${userId}?`)) {
+    try {
+      await db.collection('users').doc(userId).delete();
+      alert('המשתמש נמחק בהצלחה');
+      loadAdminUsers();
+    } catch(e) {
+      alert('שגיאה במחיקת המשתמש');
+    }
+  }
+}
+
+async function adminUpdatePassword(userId) {
+  const newPassInput = document.getElementById(`new-pass-${userId}`);
+  const newPass = newPassInput.value.trim();
+  if (!newPass || newPass.length < 4) {
+    alert('יש להזין סיסמה באורך של לפחות 4 תווים');
+    return;
+  }
+  try {
+    await db.collection('users').doc(userId).update({ password: newPass });
+    alert('הסיסמה עודכנה בהצלחה!');
+    newPassInput.value = '';
+    loadAdminUsers();
+  } catch(e) {
+    alert('שגיאה בעדכון הסיסמה');
+  }
+}
+
+document.getElementById('adm-btn-create').addEventListener('click', async () => {
+  const u = document.getElementById('adm-new-user').value.trim().toLowerCase();
+  const p = document.getElementById('adm-new-pass').value.trim();
+  const rateEl = document.getElementById('adm-new-rate');
+  const rateVal = rateEl ? parseFloat(rateEl.value) : null;
+  const baseMonthly = rateVal ? (rateVal * TAX_CONFIG.standardMonthlyHours) : null;
+  const travel = parseFloat(document.getElementById('adm-new-travel').value) || null;
+
+  if (!u || !p) {
+    alert('יש להזין שם משתמש וסיסמה');
+    return;
+  }
+  if (u === 'admin') {
+    alert('לא ניתן ליצור משתמש בשם זה');
+    return;
+  }
+
+  try {
+    const docRef = await db.collection('users').doc(u).get();
+    if (docRef.exists) {
+      alert('שם המשתמש כבר קיים במערכת');
+      return;
+    }
+
+    await db.collection('users').doc(u).set({
+      password: p,
+      rows: [],
+      archive: [],
+      activeDraft: null,
+      editingArchiveId: null,
+      vacationBalance: { prev: -34.92, credit: 11.9 },
+      settings: {
+        dayStart: 420,
+        dayEnd: 975,
+        thuEnd: 915,
+        breakMin: 15,
+        baseMonthly: baseMonthly || 11319.40,
+        rateTravel: travel || 32.00,
+        mealCost: 9.5,
+        gelumPhone: null,
+        gelumMealPerDay: 23.8,
+        gelumDental: null,
+        taxPoints: 6.75,
+        taxPointValue: 242,
+        pctPenEmp: 6,
+        pctPenEr: 6.5,
+        pctSevEr: 6,
+        pctKerEmp: 2.5,
+        pctKerEr: 5,
+        fixedDed: null,
+        fixedNvidia: 1200,
+        variableBonus: null
+      },
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    alert('המשתמש נוצר בהצלחה!');
+    document.getElementById('adm-new-user').value = '';
+    document.getElementById('adm-new-pass').value = '';
+    loadAdminUsers();
+  } catch(e) {
+    alert('שגיאה ביצירת המשתמש בענן');
+  }
+});
+
+let rows = [];
+let archive = [];
+let activeDraft = null; 
+let editingArchiveId = null; 
+let saveTimer = null;
+const WEEKDAY_NAMES = ['א','ב','ג','ד','ה','ו','ש'];
+const MONTH_NAMES_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+let timerInterval = null;
+
+function getHolidayInfo(dateStr) {
+  if (!dateStr) return null;
+  const row = rows.find(r => r.date === dateStr);
+  if (row && row.customHolidayName) return row.customHolidayName;
+  return ISRAELI_HOLIDAYS[dateStr] || null;
+}
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function fmt(n){ return '₪' + (Math.round(n*100)/100).toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtHM(hours){
+  const sign = hours<0 ? '-' : '';
+  const abs = Math.abs(hours);
+  const h = Math.floor(abs);
+  const m = Math.round((abs-h)*60);
+  return sign + String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+
+function toMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTimeStr(totalMin){
+  if(totalMin == null || isNaN(totalMin)) return '';
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+function isoToEu(isoStr){
+  if(!isoStr) return '';
+  const p = isoStr.split('-');
+  if(p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+  return isoStr;
+}
+function formatSecToHHMMSS(totalSec) {
+  if (totalSec < 0) return '00:00:00';
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const sec = Math.floor(totalSec % 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function getCycleName(currentRows) {
+  if (!currentRows || currentRows.length === 0) return '';
+  const validRows = currentRows.filter(r => r.date);
+  if (validRows.length === 0) return '';
+  const sorted = [...validRows].sort((a,b) => a.date.localeCompare(b.date));
+  const firstDate = sorted[0].date;
+  const parts = firstDate.split('-');
+  if (parts.length === 3) {
+    let y = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10) - 1;
+    let d = parseInt(parts[2], 10);
+    if (d >= 21) {
+      m += 1;
+      if (m > 11) { m = 0; y += 1; }
+    }
+    return `${MONTH_NAMES_HE[m]} ${y}`;
+  }
+  return '';
+}
+
+function syncMobileViewToRows() {
+  if (!rows || rows.length === 0) {
+    mobileViewDate = getCycleDateFor(new Date());
+    return;
+  }
+  const hasVisibleInCurrentView = rows.some(r => r.date && isDateInMobileViewCycle(r.date, mobileViewDate));
+  if (!hasVisibleInCurrentView) {
+    const validRows = rows.filter(r => r.date);
+    if (validRows.length > 0) {
+      const sorted = [...validRows].sort((a,b) => a.date.localeCompare(b.date));
+      const lastDateStr = sorted[sorted.length - 1].date;
+      focusNewRowDate(lastDateStr);
+    }
+  }
+}
+
+function updateCycleNameDisplay() {
+  const titleEl = document.getElementById('current-cycle-name');
+  const dashTitleEl = document.getElementById('dash-cycle-title');
+  const indicator = document.getElementById('archive-mode-indicator');
+  const archiveBtn = document.getElementById('btn-archive-month');
+  
+  const cName = getCycleName(rows) || `${MONTH_NAMES_HE[mobileViewDate.getMonth()]} ${mobileViewDate.getFullYear()}`;
+  if (rows.length > 0) {
+    titleEl.textContent = '- ' + cName;
+    dashTitleEl.textContent = cName;
+  } else {
+    titleEl.textContent = '';
+    dashTitleEl.textContent = cName;
+  }
+  
+  if (indicator) {
+    indicator.style.display = editingArchiveId ? 'inline' : 'none';
+  }
+  if (archiveBtn) {
+    archiveBtn.style.display = editingArchiveId ? 'none' : 'inline-block';
+  }
+
+  updateMobileCalendarNavTitle();
+}
+
+function updateMobileCalendarNavTitle() {
+  const titleEl = document.getElementById('mobile-cal-title');
+  if (titleEl) {
+    const m = mobileViewDate.getMonth();
+    const y = mobileViewDate.getFullYear();
+    let prevM = m - 1;
+    let prevY = y;
+    if (prevM < 0) { prevM = 11; prevY--; }
+    titleEl.textContent = `${MONTH_NAMES_HE[m]} ${y} (21/${String(prevM+1).padStart(2,'0')} - 20/${String(m+1).padStart(2,'0')})`;
+  }
+}
+
+document.getElementById('cal-prev-month').addEventListener('click', () => {
+  mobileViewDate.setMonth(mobileViewDate.getMonth() - 1);
+  updateMobileCalendarNavTitle();
+  renderRows();
+});
+
+document.getElementById('cal-next-month').addEventListener('click', () => {
+  mobileViewDate.setMonth(mobileViewDate.getMonth() + 1);
+  updateMobileCalendarNavTitle();
+  renderRows();
+});
+
+document.getElementById('cal-today').addEventListener('click', () => {
+  mobileViewDate = getCycleDateFor(new Date());
+  syncMobileViewToRows();
+  updateMobileCalendarNavTitle();
+  renderRows();
+});
+
+function setupIosPicker(container, initial24Min) {
+  if (!container) return;
+  const hSel = container.querySelector('.ios-h');
+  const mSel = container.querySelector('.ios-m');
+  if(hSel.options.length === 0){
+    for(let i=0; i<24; i++){
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = String(i).padStart(2,'0'); hSel.appendChild(opt);
+    }
+    for(let i=0; i<60; i++){
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = String(i).padStart(2,'0'); mSel.appendChild(opt);
+    }
+  }
+  if(initial24Min != null){
+    let h24 = Math.floor(initial24Min / 60) % 24;
+    const m = initial24Min % 60;
+    hSel.value = h24; mSel.value = m;
+  }
+}
+
+setupIosPicker(document.getElementById('ios-set-dayStart'), 420);
+setupIosPicker(document.getElementById('ios-set-dayEnd'), 975);
+setupIosPicker(document.getElementById('ios-set-thuEnd'), 915);
+
+function getIosPickerValue(container) {
+  if (!container) return 0;
+  const h = parseInt(container.querySelector('.ios-h').value, 10) || 0;
+  const m = parseInt(container.querySelector('.ios-m').value, 10) || 0;
+  return h * 60 + m;
+}
+
+function getSettings(forceRefresh = false){
+  if (cachedSettings && !forceRefresh) return cachedSettings;
+  const val = (id) => { const v = document.getElementById(id).value; return v === "" ? null : (parseFloat(v)||0); };
+  cachedSettings = {
+    dayStart: getIosPickerValue(document.getElementById('ios-set-dayStart')),
+    dayEnd: getIosPickerValue(document.getElementById('ios-set-dayEnd')),
+    thuEnd: getIosPickerValue(document.getElementById('ios-set-thuEnd')),
+    breakMin: val('breakMin'),
+    baseMonthly: val('baseMonthly'),
+    rateTravel: val('rateTravel'),
+    mealCost: val('mealCost'),
+    gelumPhone: val('gelumPhone'),
+    gelumMealPerDay: val('gelumMealPerDay'),
+    gelumDental: val('gelumDental'),
+    taxPoints: val('taxPoints'),
+    taxPointValue: val('taxPointValue'),
+    pctPenEmp: val('pctPenEmp'),
+    pctPenEr: val('pctPenEr'),
+    pctSevEr: val('pctSevEr'),
+    pctKerEmp: val('pctKerEmp'),
+    pctKerEr: val('pctKerEr'),
+    fixedDed: val('fixedDed'),
+    fixedNvidia: val('fixedNvidia'),
+    variableBonus: val('variableBonus'),
+  };
+  return cachedSettings;
+}
+
+function applySettingsToDOM(p) {
+  if (!p) return;
+  if(p.dayStart != null) setupIosPicker(document.getElementById('ios-set-dayStart'), p.dayStart);
+  if(p.dayEnd != null) setupIosPicker(document.getElementById('ios-set-dayEnd'), p.dayEnd);
+  if(p.thuEnd != null) setupIosPicker(document.getElementById('ios-set-thuEnd'), p.thuEnd);
+  
+  const map = { 
+    breakMin:'breakMin', baseMonthly:'baseMonthly', rateTravel:'rateTravel', mealCost:'mealCost', 
+    gelumPhone:'gelumPhone', gelumMealPerDay:'gelumMealPerDay', gelumDental:'gelumDental', 
+    taxPoints:'taxPoints', taxPointValue:'taxPointValue', pctPenEmp:'pctPenEmp', 
+    pctPenEr:'pctPenEr', pctSevEr:'pctSevEr', pctKerEmp:'pctKerEmp', pctKerEr:'pctKerEr', 
+    fixedDed:'fixedDed', fixedNvidia:'fixedNvidia', variableBonus:'variableBonus'
+  };
+  Object.keys(map).forEach(k => { 
+    const el = document.getElementById(map[k]); 
+    if (el) {
+      if (p[k] != null) el.value = p[k]; 
+      else el.value = ''; 
+    }
+  });
+  getSettings(true);
+}
+
+function weekdayOf(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr+'T00:00:00');
+  return d.getDay(); 
+}
+
+function computeDay(row, s){
+  const wd = weekdayOf(row.date);
+  const holidayName = getHolidayInfo(row.date);
+  const isEve = holidayName && holidayName.includes('ערב');
+  const isHoliday = holidayName && !isEve;
+  const isWeekendHoliday = isHoliday && (wd === 5 || wd === 6) && !row.customHolidayName; 
+  const isFridayEve = isEve && (wd === 5);
+
+  const inMin = toMin(row.clockIn);
+  let outMin = toMin(row.clockOut);
+  let netHours = 0, rawHours = 0, breakHours = 0;
+
+  let standardStartMin = s.dayStart; 
+  let standardEndMin = (wd === 4 && s.thuEnd != null) ? s.thuEnd : s.dayEnd;
+  
+  if (isEve) {
+    if (isFridayEve) {
+      standardEndMin = standardStartMin; 
+    } else {
+      standardEndMin = 795;
+    }
+  } else if (isHoliday || row.customHolidayName) {
+    standardEndMin = standardStartMin; 
+  }
+
+  const standardTotalNetHours = (standardEndMin != null && standardStartMin != null && !isFridayEve && !isWeekendHoliday && !isHoliday && !row.customHolidayName) ? Math.max(0, (standardEndMin - standardStartMin - s.breakMin) / 60) : 8.375;
+
+  if(inMin!=null && outMin!=null && s.dayEnd!=null){
+    const rawMin = Math.max(0, outMin - inMin);
+    const breakMinApplied = (rawMin > 360) ? Math.min(s.breakMin, rawMin) : 0;
+    const netMin = Math.max(0, rawMin - breakMinApplied);
+    rawHours = rawMin/60; breakHours = breakMinApplied/60; netHours = netMin/60;
+  }
+
+  let hReg = 0, h125 = 0, h150 = 0;
+  if (isWeekendHoliday || isFridayEve) {
+    hReg = 0; netHours = 0;
+  } else if (isHoliday || row.customHolidayName) {
+    hReg = standardTotalNetHours; netHours = standardTotalNetHours;
+  } else if(row.vacation) {
+    hReg = standardTotalNetHours; netHours = standardTotalNetHours;
+  } else if(row.sick) {
+    if (row.sickType === 1) {
+      hReg = 0; netHours = 0;
+    } else if (row.sickType === 2) {
+      hReg = standardTotalNetHours / 2; netHours = standardTotalNetHours / 2;
+    } else {
+      hReg = standardTotalNetHours; netHours = standardTotalNetHours;
+    }
+  } else if(inMin != null && outMin != null && standardEndMin != null) {
+    hReg = Math.min(netHours, standardTotalNetHours);
+    if(netHours > standardTotalNetHours) {
+      const otNet = netHours - standardTotalNetHours;
+      h125 = Math.min(2, otNet); h150 = Math.max(0, otNet - 2);
+    }
+  }
+
+  let deficitSuggested = 0;
+  if (isWeekendHoliday || isFridayEve || isHoliday || row.vacation || row.sick || row.customHolidayName) {
+    deficitSuggested = 0;
+  } else if (inMin != null && outMin == null) {
+    deficitSuggested = 0; 
+  } else if (inMin != null && outMin != null) {
+    const targetEndMin = inMin + (standardEndMin - standardStartMin);
+    deficitSuggested = Math.max(0, targetEndMin - outMin) / 60;
+  } else {
+    deficitSuggested = 0;
+  }
+  
+  let statusBadge = (isWeekendHoliday || isFridayEve) ? '🔵' : (isEve ? '🟠' : '🟢');
+  let statusTooltip = isWeekendHoliday ? 'חג שנופל בסוף שבוע' : (isFridayEve ? 'ערב חג ביום שישי' : (isEve ? `ערב חג: ${holidayName}` : (isHoliday || row.customHolidayName ? `חג: ${holidayName}` : 'יום תקין')));
+  let anomalyText = '';
+  
+  if (isWeekendHoliday || isFridayEve) {
+    anomalyText = '';
+  } else if (row.vacation) {
+    statusBadge = '🔵';
+    statusTooltip = 'חופשה';
+  } else if (row.sick) {
+    statusBadge = '🟣';
+    if (row.sickType === 1) statusTooltip = 'מחלה 1 (ללא תשלום)';
+    else if (row.sickType === 2) statusTooltip = 'מחלה 2-3 (חצי משמרת)';
+    else statusTooltip = 'מחלה 4+ (בתשלום מלא)';
+  } else if (inMin != null && outMin == null) {
+    statusBadge = '🔴';
+    statusTooltip = 'חסרה שעת יציאה';
+    anomalyText = 'חסרה יציאה';
+  } else if (inMin == null && outMin != null) {
+    statusBadge = '🔴';
+    statusTooltip = 'חסרה שעת כניסה';
+    anomalyText = 'חסרה כניסה';
+  } else if (inMin == null && outMin == null && !isHoliday && !row.customHolidayName) {
+    statusBadge = '🟡';
+    statusTooltip = 'טרם הוזנו שעות';
+    anomalyText = 'חסרים נתונים';
+  } else if (netHours < standardTotalNetHours - 0.05 && !isHoliday && !row.customHolidayName) {
+    statusBadge = '🟠';
+    statusTooltip = `יום קצר (חלים ${fmtHM(deficitSuggested)} חוסר)`;
+    anomalyText = 'יום קצר';
+  }
+
+  return {wd, holidayName, isEve, isHoliday, isWeekendHoliday, isFridayEve, rawHours, breakHours, netHours, hReg, h125, h150, deficitSuggested, standardTotalNetHours, statusBadge, statusTooltip, anomalyText};
+}
+
+function dayPay(row, s, calc, workingDaysCount){
+  if (calc.isWeekendHoliday || calc.isFridayEve) {
+    return {pay: 0, deficit: 0};
+  }
+
+  const hourlyRate = (s.baseMonthly || 11319.40) / TAX_CONFIG.standardMonthlyHours;
+  const daysInMonth = workingDaysCount > 0 ? workingDaysCount : 22;
+  const dailyBase = (s.baseMonthly || 11319.40) / daysInMonth;
+
+  let pay = dailyBase; 
+  
+  if (calc.h125 > 0) pay += calc.h125 * hourlyRate * 1.25;
+  if (calc.h150 > 0) pay += calc.h150 * hourlyRate * 1.5;
+
+  if(row.travel && (!row.sick || row.sickType !== 1) && !calc.isHoliday && !row.customHolidayName) pay += (s.rateTravel||0);
+  
+  let def = calc.deficitSuggested;
+  return {pay, deficit: def};
+}
+
+function calculateTargetEndTime(row, s) {
+  if (!row.clockIn) return '-';
+  const holidayName = getHolidayInfo(row.date);
+  const isEve = holidayName && holidayName.includes('ערב');
+  const wd = weekdayOf(row.date);
+  if ((isEve && wd === 5) || (holidayName && !isEve && (wd === 5 || wd === 6))) return '-';
+  if (row.customHolidayName) return '-';
+
+  const inMin = toMin(row.clockIn);
+  if (inMin == null) return '-';
+
+  const standardStartMin = s.dayStart;
+  let standardEndMin = (wd === 4 && s.thuEnd != null) ? s.thuEnd : s.dayEnd;
+  if (isEve) standardEndMin = 795;
+
+  if (standardEndMin == null || standardStartMin == null) return '-';
+
+  const standardTotalDuration = standardEndMin - standardStartMin;
+  const targetEndMin = inMin + standardTotalDuration;
+  return minToTimeStr(targetEndMin);
+}
+
+function calculateTimerText(row, s) {
+  if (!row.clockIn) return '-';
+  if (row.clockOut) return 'הסתיים';
+
+  const holidayName = getHolidayInfo(row.date);
+  const isEve = holidayName && holidayName.includes('ערב');
+  const wd = weekdayOf(row.date);
+  if (isEve && wd === 5) return 'שבתון';
+  if (holidayName && !isEve && (wd === 5 || wd === 6)) return 'שבתון';
+  if (row.customHolidayName) return 'שבתון';
+
+  const inMin = toMin(row.clockIn);
+  if (inMin == null) return '-';
+
+  const standardStartMin = s.dayStart;
+  let standardEndMin = (wd === 4 && s.thuEnd != null) ? s.thuEnd : s.dayEnd;
+  if (isEve) standardEndMin = 795;
+
+  if (standardEndMin == null || standardStartMin == null) return '-';
+
+  const targetEndMin = inMin + (standardEndMin - standardStartMin);
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const nowSec = now.getSeconds();
+  const totalTargetSec = targetEndMin * 60;
+  const currentTotalSec = nowMin * 60 + nowSec;
+  const diffSec = totalTargetSec - currentTotalSec;
+
+  if (diffSec <= 0) return 'הסתיים';
+
+  const h = Math.floor(diffSec / 3600);
+  const m = Math.floor((diffSec % 3600) / 60);
+  const sec = diffSec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}-`;
+}
+
+function renderAnomalyBanner() {
+  const container = document.getElementById('anomaly-banner-container');
+  const s = getSettings();
+  const anomalies = [];
+  
+  rows.forEach(row => {
+    const calc = computeDay(row, s);
+    if (calc.statusBadge === '🔴' || calc.statusBadge === '🟠' || calc.statusBadge === '🟡') {
+      if (calc.anomalyText) {
+        anomalies.push({
+          date: isoToEu(row.date) || 'ללא תאריך',
+          text: calc.anomalyText
+        });
+      }
+    }
+  });
+
+  if (anomalies.length > 0) {
+    let detailsHtml = '';
+    if (anomalyBannerOpen) {
+      detailsHtml = `<div class="anomaly-details-list">` + 
+        anomalies.map(item => `<div class="anomaly-item-row"><span><strong>${item.date}</strong> — ${item.text}</span></div>`).join('') +
+        `</div>`;
+    }
+
+    container.innerHTML = `
+      <div class="anomaly-banner" onclick="toggleAnomalyBannerOpen()">
+        <div class="anomaly-header-row">
+          <span>⚠️ <strong>${anomalies.length} ימים דורשים תשומת לב</strong> (לחץ להצגה/הסתרת פירוט)</span>
+          <button class="anomaly-filter-btn" onclick="event.stopPropagation(); toggleAnomalyFilter()">${showOnlyAnomalies ? 'הצג את כל הימים' : 'הצג רק ימים בעייתיים'}</button>
+        </div>
+        ${detailsHtml}
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="anomaly-banner ok">
+        <span>✅ כל ימי העבודה מדווחים ותקינים לחלוטין!</span>
+      </div>
+    `;
+  }
+}
+
+function toggleAnomalyBannerOpen() {
+  anomalyBannerOpen = !anomalyBannerOpen;
+  renderAnomalyBanner();
+}
+
+function toggleAnomalyFilter() {
+  showOnlyAnomalies = !showOnlyAnomalies;
+  renderRows();
+}
+
+function triggerSafeDelete(rowId) {
+  rowToDeleteId = rowId;
+  document.getElementById('confirm-modal').style.display = 'flex';
+}
+
+document.getElementById('btn-cancel-delete').addEventListener('click', () => {
+  rowToDeleteId = null;
+  document.getElementById('confirm-modal').style.display = 'none';
+});
+
+document.getElementById('btn-confirm-delete').addEventListener('click', () => {
+  if (rowToDeleteId) {
+    rows = rows.filter(r => r.id !== rowToDeleteId);
+    rowToDeleteId = null;
+    document.getElementById('confirm-modal').style.display = 'none';
+    renderRows();
+    recalcAndSave();
+  }
+});
+
+function isDateInMobileViewCycle(dateStr, viewDate) {
+  if (!dateStr) return true;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return true;
+  const dYear = parseInt(parts[0], 10);
+  const dMonth = parseInt(parts[1], 10) - 1;
+  const dDay = parseInt(parts[2], 10);
+
+  const vYear = viewDate.getFullYear();
+  const vMonth = viewDate.getMonth();
+
+  let prevMonth = vMonth - 1;
+  let prevYear = vYear;
+  if (prevMonth < 0) { prevMonth = 11; prevYear--; }
+
+  const cycleStart = new Date(prevYear, prevMonth, 21, 0, 0, 0);
+  const cycleEnd = new Date(vYear, vMonth, 20, 23, 59, 59);
+  const itemDate = new Date(dYear, dMonth, dDay, 12, 0, 0);
+
+  return itemDate >= cycleStart && itemDate <= cycleEnd;
+}
+
+function setNowTime(rowId, field) {
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  const targetRow = rows.find(r => r.id === rowId);
+  if (targetRow) {
+    if (field === 'in') targetRow.clockIn = timeStr;
+    if (field === 'out') targetRow.clockOut = timeStr;
+    renderRows();
+    recalcAndSave();
+  }
+}
+
+function attachRowListeners(wrapper, row) {
+  if (!wrapper) return;
+
+  const dateInput = wrapper.querySelector('input[data-field="date"]');
+  if (dateInput) {
+    dateInput.addEventListener('change', (e) => {
+      row.date = e.target.value;
+      if (row.date) focusNewRowDate(row.date);
+      renderRows();
+      recalcAndSave();
+    });
+  }
+
+  const inPicker = wrapper.querySelector('.row-in, .row-in-m');
+  if (inPicker) {
+    setupIosPicker(inPicker, toMin(row.clockIn));
+    inPicker.querySelectorAll('select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        row.clockIn = minToTimeStr(getIosPickerValue(inPicker));
+        renderRows();
+        recalcAndSave();
+      });
+    });
+  }
+
+  const outPicker = wrapper.querySelector('.row-out, .row-out-m');
+  if (outPicker) {
+    setupIosPicker(outPicker, toMin(row.clockOut));
+    outPicker.querySelectorAll('select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        row.clockOut = minToTimeStr(getIosPickerValue(outPicker));
+        renderRows();
+        recalcAndSave();
+      });
+    });
+  }
+
+  const chkTravel = wrapper.querySelector('input[data-field="travel"]');
+  if (chkTravel) chkTravel.addEventListener('change', (e) => { row.travel = e.target.checked; recalcAndSave(); });
+  
+  const chkMeal = wrapper.querySelector('input[data-field="meal"]');
+  if (chkMeal) chkMeal.addEventListener('change', (e) => { row.meal = e.target.checked; recalcAndSave(); });
+  
+  const btnDel = wrapper.querySelector('[data-del]');
+  if (btnDel) btnDel.addEventListener('click', () => { triggerSafeDelete(row.id); });
+}
+
+function renderRows(){
+  const tbodyDesktop = document.getElementById('rows-desktop');
+  const containerMobile = document.getElementById('rows-mobile');
+  const isMobile = window.innerWidth <= 900;
+  lastIsMobileView = isMobile;
+  const s = getSettings();
+  
+  renderAnomalyBanner();
+  tbodyDesktop.innerHTML = '';
+  containerMobile.innerHTML = '';
+  updateCycleNameDisplay();
+
+  const workingDaysCount = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const count = workingDaysCount.length;
+
+  rows.forEach(row=>{
+    if (row.isDeficitCompletion) return;
+    const calc = computeDay(row, s);
+    
+    if (showOnlyAnomalies && calc.statusBadge !== '🔴' && calc.statusBadge !== '🟠' && calc.statusBadge !== '🟡') {
+      return;
+    }
+
+    if (isMobile && !isDateInMobileViewCycle(row.date, mobileViewDate)) {
+      return;
+    }
+
+    const {pay, deficit} = dayPay(row, s, calc, count);
+    let wdTag = calc.wd!=null ? WEEKDAY_NAMES[calc.wd] : '';
+    
+    if (calc.holidayName) {
+      wdTag += ` (${calc.holidayName})`;
+    } else if (calc.isEve) {
+      wdTag += ' (ערב חג)';
+    }
+
+    const targetTimeStr = calculateTargetEndTime(row, s);
+    const timerStr = calculateTimerText(row, s);
+    const isFinished = (timerStr === 'הסתיים' || timerStr === 'שבתון');
+
+    const isCustomHoliday = !!row.customHolidayName;
+    const renderAsHoliday = calc.isHoliday || calc.isWeekendHoliday || calc.isFridayEve || isCustomHoliday;
+    
+    let cardStyleClass = '';
+    if (row.vacation) cardStyleClass = 'row-vacation-card';
+    else if (row.sick) cardStyleClass = 'row-sick-card';
+    else if (isCustomHoliday) cardStyleClass = 'row-holiday-card';
+    else if (renderAsHoliday) cardStyleClass = 'row-vacation-card';
+
+    const deficitDisplayVal = deficit > 0.001 ? fmtHM(deficit) + '-' : '00:00';
+    const deficitColor = deficit > 0.001 ? 'var(--rust)' : 'var(--text-dim)';
+    const deficitBg = deficit > 0.001 ? 'rgba(215,0,21,0.06)' : 'var(--input-bg)';
+    const deficitBorder = deficit > 0.001 ? 'rgba(215,0,21,0.2)' : 'var(--line)';
+    const deficitBoxHtml = `<div style="background:${deficitBg}; border:1px solid ${deficitBorder}; color:${deficitColor}; border-radius:8px; padding:6px; min-width:65px; text-align:center; font-family:monospace; font-size:13px; font-weight:600; direction:ltr; display:inline-block; margin:0 auto; font-variant-numeric:tabular-nums;">${deficitDisplayVal}</div>`;
+
+    if (!isMobile) {
+      let inHtml = '', outHtml = '';
+      if (isCustomHoliday) {
+        let holText = `חג / שבתון (${row.customHolidayName})`;
+        inHtml = `<td colspan="2"><span style="font-weight:600; color:#b38f00; font-size:13px; background:rgba(142,111,0,0.1); padding:4px 14px; border-radius:6px; display:inline-block;">${holText}</span></td>`;
+      } else if (renderAsHoliday) {
+        let holText = calc.isWeekendHoliday ? 'שבתון' : (calc.isFridayEve ? 'ערב חג/סופ"ש' : 'יום חג');
+        inHtml = `<td colspan="2"><span style="font-weight:600; color:#1e7e34; font-size:13px; background:rgba(40,167,69,0.1); padding:4px 14px; border-radius:6px; display:inline-block;">${holText}</span></td>`;
+      } else if (row.vacation) {
+        inHtml = `<td><span style="font-weight:600; color:#b30011; font-size:13px; background:rgba(215,0,21,0.06); padding:4px 8px; border-radius:6px; display:inline-block;">יום חופש</span></td>`;
+        outHtml = `<td><span style="color:var(--text-dim);"> - </span></td>`;
+      } else if (row.sick) {
+        let sText = row.sickType === 1 ? 'יום מחלה 1' : (row.sickType === 2 ? 'יום מחלה 2-3' : 'יום מחלה 4+');
+        inHtml = `<td><span style="font-weight:600; color:#1e7e34; font-size:13px; background:rgba(40,167,69,0.1); padding:4px 8px; border-radius:6px; display:inline-block;">${sText}</span></td>`;
+        outHtml = `<td><span style="color:var(--text-dim);"> - </span></td>`;
+      } else {
+        inHtml = `<td>
+          <div style="display:flex; align-items:center; justify-content:center; gap:2px;">
+            <div class="ios-time-picker row-in"><select class="ios-h"></select><span>:</span><select class="ios-m"></select></div>
+            <button class="quick-time-btn in" onclick="setNowTime('${row.id}', 'in')">כניסה</button>
+          </div>
+        </td>`;
+        outHtml = `<td>
+          <div style="display:flex; align-items:center; justify-content:center; gap:2px;">
+            <div class="ios-time-picker row-out"><select class="ios-h"></select><span>:</span><select class="ios-m"></select></div>
+            <button class="quick-time-btn out" onclick="setNowTime('${row.id}', 'out')">יציאה</button>
+          </div>
+        </td>`;
+      }
+
+      const tr = document.createElement('tr');
+      if (cardStyleClass) tr.className = cardStyleClass;
+
+      if (renderAsHoliday) {
+        tr.innerHTML = `
+          <td><span title="${calc.statusTooltip}" style="cursor:help; font-size:15px;">${calc.statusBadge}</span></td>
+          <td>
+            <div class="date-cell-wrapper">
+              <span class="weekday-tag-inline">${wdTag}</span>
+              <input type="date" class="custom-date-trigger" data-field="date" value="${row.date || ''}">
+            </div>
+          </td>
+          ${inHtml}
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed">-</td>
+          <td class="computed hl">${fmt(pay)}</td>
+          <td><span class="target-time-badge">-</span></td>
+          <td><span class="timer-badge finished">חג</span></td>
+          <td><button class="row-del" data-del="1" title="מחק יום">✕</button></td>
+        `;
+      } else {
+        tr.innerHTML = `
+          <td><span title="${calc.statusTooltip}" style="cursor:help; font-size:15px;">${calc.statusBadge}</span></td>
+          <td>
+            <div class="date-cell-wrapper">
+              <span class="weekday-tag-inline">${wdTag}</span>
+              <input type="date" class="custom-date-trigger" data-field="date" value="${row.date || ''}">
+            </div>
+          </td>
+          ${inHtml}
+          ${outHtml}
+          <td class="computed">${fmtHM(calc.rawHours)}</td>
+          <td class="computed hl">${fmtHM(calc.netHours)}</td>
+          <td class="computed">${fmtHM(calc.hReg)}</td>
+          <td class="computed ${calc.h125>0?'ot':''}">${fmtHM(calc.h125)}</td>
+          <td class="computed ${calc.h150>0?'ot':''}">${fmtHM(calc.h150)}</td>
+          <td>${deficitBoxHtml}</td>
+          <td><input type="checkbox" data-field="travel" ${row.travel?'checked':''}></td>
+          <td><input type="checkbox" data-field="meal" ${row.meal?'checked':''}></td>
+          <td class="computed hl">${fmt(pay)}</td>
+          <td><span class="target-time-badge" data-target-id="${row.id}">${targetTimeStr}</span></td>
+          <td><span class="timer-badge ${isFinished ? 'finished' : ''}" data-timer-id="${row.id}">${timerStr}</span></td>
+          <td><button class="row-del" data-del="1" title="מחק יום">✕</button></td>
+        `;
+      }
+      tbodyDesktop.appendChild(tr);
+      attachRowListeners(tr, row);
+    } else {
+      let mobileContentHtml = '';
+      if (isCustomHoliday) {
+        let holText = `חג / שבתון (${row.customHolidayName})`;
+        mobileContentHtml = `<div class="mobile-card-row"><span class="label">סטטוס</span><span style="font-weight:600; color:#b38f00; font-size:13px; background:rgba(142,111,0,0.1); padding:4px 12px; border-radius:6px; display:inline-block;">${holText}</span></div>`;
+      } else if (renderAsHoliday) {
+        let holText = calc.isWeekendHoliday ? 'שבתון' : (calc.isFridayEve ? 'ערב חג/סופ"ש' : 'יום חג');
+        mobileContentHtml = `<div class="mobile-card-row"><span class="label">סטטוס</span><span style="font-weight:600; color:#1e7e34; font-size:13px; background:rgba(40,167,69,0.1); padding:4px 12px; border-radius:6px; display:inline-block;">${holText}</span></div>`;
+      } else if (row.vacation) {
+        mobileContentHtml = `<div class="mobile-card-row"><span class="label">סטטוס</span><span style="font-weight:600; color:#b30011; font-size:13px; background:rgba(215,0,21,0.06); padding:4px 12px; border-radius:6px; display:inline-block;">יום חופש</span></div>`;
+      } else if (row.sick) {
+        let sText = row.sickType === 1 ? 'יום מחלה 1' : (row.sickType === 2 ? 'יום מחלה 2-3' : 'יום מחלה 4+');
+        mobileContentHtml = `<div class="mobile-card-row"><span class="label">סטטוס</span><span style="font-weight:600; color:#1e7e34; font-size:13px; background:rgba(40,167,69,0.1); padding:4px 12px; border-radius:6px; display:inline-block;">${sText}</span></div>`;
+      }
+
+      const mobileWrapper = document.createElement('div');
+      mobileWrapper.className = `mobile-day-card ${cardStyleClass}`;
+      mobileWrapper.innerHTML = `
+        <div class="mobile-card-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span title="${calc.statusTooltip}" style="cursor:help; font-size:15px;">${calc.statusBadge}</span>
+            <span class="weekday-tag-inline">${wdTag}</span>
+            <input type="date" class="custom-date-trigger" data-field="date" value="${row.date || ''}">
+          </div>
+          <button class="row-del" data-del="1" style="font-size:16px;">✕</button>
+        </div>
+        ${renderAsHoliday || row.vacation || row.sick ? mobileContentHtml : `
+          <div class="mobile-time-group">
+            <span style="font-size:12px; color:var(--text-dim); font-weight:500;">כניסה</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="ios-time-picker row-in-m"><select class="ios-h"></select><span>:</span><select class="ios-m"></select></div>
+              <button class="quick-time-btn in" onclick="setNowTime('${row.id}', 'in')">כניסה</button>
+            </div>
+          </div>
+          <div class="mobile-time-group">
+            <span style="font-size:12px; color:var(--text-dim); font-weight:500;">יציאה</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="ios-time-picker row-out-m"><select class="ios-h"></select><span>:</span><select class="ios-m"></select></div>
+              <button class="quick-time-btn out" onclick="setNowTime('${row.id}', 'out')">יציאה</button>
+            </div>
+          </div>
+        `}
+        <div class="mobile-card-row">
+          <span class="label">נטו יום / סה״כ ₪</span>
+          <div><span class="computed hl">${renderAsHoliday ? '-' : fmtHM(calc.netHours)}</span> | <strong style="color:var(--text); font-variant-numeric:tabular-nums;">${fmt(pay)}</strong></div>
+        </div>
+        ${renderAsHoliday ? '' : `
+          <div class="mobile-card-row">
+            <span class="label">שעות נוספות (125% / 150%)</span>
+            <span class="computed ot">${fmtHM(calc.h125)} / ${fmtHM(calc.h150)}</span>
+          </div>
+          <div class="mobile-card-row">
+            <span class="label">קיזוז חוסר (ש')</span>
+            ${deficitBoxHtml}
+          </div>
+          <div class="mobile-card-row">
+            <span class="label">נסיעה / ארוחה</span>
+            <div style="display:flex; gap:16px; align-items:center;">
+              <label style="font-size:13px; display:flex; align-items:center; gap:4px;"><input type="checkbox" data-field="travel" ${row.travel?'checked':''}> נסיעה</label>
+              <label style="font-size:13px; display:flex; align-items:center; gap:4px;"><input type="checkbox" data-field="meal" ${row.meal?'checked':''}> ארוחה</label>
+            </div>
+          </div>
+        `}
+        <div class="mobile-card-row" style="border-top:1px solid var(--line); padding-top:10px; margin-top:4px;">
+          <span class="label">שעת יעד / טיימר</span>
+          <div><span class="target-time-badge" data-target-id="${row.id}">${targetTimeStr}</span> <span class="timer-badge ${isFinished ? 'finished' : ''}" data-timer-id="${row.id}">${timerStr}</span></div>
+        </div>
+      `;
+      containerMobile.appendChild(mobileWrapper);
+      attachRowListeners(mobileWrapper, row);
+    }
+  });
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const nowMobile = window.innerWidth <= 900;
+    if (nowMobile !== lastIsMobileView && currentUser && currentUser !== 'admin') {
+      renderRows();
+    }
+  }, 150);
+});
+
+function renderArchive() {
+  const container = document.getElementById('archive-list');
+  const card = document.getElementById('archive-card');
+  
+  container.innerHTML = '';
+  let hasContent = false;
+
+  if (editingArchiveId) {
+    hasContent = true;
+    const btn = document.createElement('button');
+    btn.className = 'add-row';
+    btn.style.background = 'var(--rust)';
+    btn.style.color = '#ffffff';
+    btn.style.width = '100%';
+    btn.innerHTML = `🔙 סיום עריכת ארכיון וחזרה לחודש הפעיל`;
+    btn.onclick = () => restoreActiveMonth();
+    container.appendChild(btn);
+  }
+  
+  if (archive && archive.length > 0) {
+    hasContent = true;
+    archive.forEach((arc) => {
+      const isCurrentlyViewed = (arc.id === editingArchiveId);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'archive-item-wrapper';
+
+      const btn = document.createElement('button');
+      btn.className = 'add-row';
+      
+      if (isCurrentlyViewed) {
+        btn.style.background = 'var(--accent)';
+        btn.style.color = '#ffffff';
+        btn.innerHTML = `👁️ ${arc.name} (בצפייה כעת)`;
+        btn.onclick = () => {}; 
+      } else {
+        btn.style.background = 'var(--input-bg)';
+        btn.style.color = 'var(--text)';
+        btn.style.border = '1px solid var(--line)';
+        btn.innerHTML = `📂 ${arc.name}`;
+        btn.onclick = () => restoreFromArchive(arc.id);
+      }
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'del-arc';
+      delBtn.innerHTML = '🗑️';
+      delBtn.title = 'מחק ארכיון זה לצמיתות';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`האם אתה בטוח שברצונך למחוק את ארכיון "${arc.name}" לצמיתות?`)) {
+          if (isCurrentlyViewed) {
+            restoreActiveMonth(true); 
+          }
+          archive = archive.filter(a => a.id !== arc.id);
+          renderRows();
+          renderArchive();
+          recalcAndSave();
+        }
+      };
+
+      wrapper.appendChild(btn);
+      wrapper.appendChild(delBtn);
+      container.appendChild(wrapper);
+    });
+  }
+
+  card.style.display = hasContent ? 'block' : 'none';
+}
+
+function updateCurrentArchiveInList() {
+  if (!editingArchiveId) return;
+  const idx = archive.findIndex(a => a.id === editingArchiveId);
+  if (idx !== -1) {
+    archive[idx].rows = [...rows];
+    archive[idx].settings = getSettings();
+  }
+}
+
+function restoreFromArchive(archiveId) {
+  if (!editingArchiveId) {
+    activeDraft = { rows: [...rows], settings: getSettings() };
+  } else {
+    updateCurrentArchiveInList();
+  }
+
+  const target = archive.find(a => a.id === archiveId);
+  if (target) {
+    editingArchiveId = archiveId;
+    rows = [...(target.rows || [])];
+    if (target.settings) applySettingsToDOM(target.settings);
+    syncMobileViewToRows();
+  }
+  
+  renderRows();
+  renderArchive();
+  recalcAndSave();
+}
+
+function restoreActiveMonth(skipUpdate = false) {
+  if (editingArchiveId && !skipUpdate) {
+    updateCurrentArchiveInList(); 
+  }
+  editingArchiveId = null;
+  
+  if (activeDraft) {
+    if (Array.isArray(activeDraft)) {
+      rows = [...activeDraft];
+    } else {
+      rows = [...(activeDraft.rows || [])];
+      if (activeDraft.settings) applySettingsToDOM(activeDraft.settings);
+    }
+    activeDraft = null;
+  } else {
+    rows = [];
+  }
+  
+  syncMobileViewToRows();
+  renderRows();
+  renderArchive();
+  recalcAndSave();
+}
+
+document.getElementById('btn-archive-month').addEventListener('click', () => {
+  if (rows.length === 0) {
+    alert('אין נתונים בטבלה כדי לסגור לארכיון.');
+    return;
+  }
+  if (editingArchiveId) {
+    alert("אי אפשר לסגור ארכיון בתוך ארכיון!");
+    return;
+  }
+  
+  const s = getSettings();
+  const validRowsForDays = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const count = validRowsForDays.length;
+  let totalDeficit = 0;
+  rows.forEach(row => {
+    const calc = computeDay(row, s);
+    const { deficit } = dayPay(row, s, calc, count);
+    totalDeficit += deficit;
+  });
+
+  if (totalDeficit > 0.001) {
+    document.getElementById('archive-question-text').textContent = `נמצא חוסר במונה הקיזוז (${fmtHM(totalDeficit)} ש'). האם להשלים את מונה הקיזוז על ידי ימי חופש?`;
+    document.getElementById('archive-modal').style.display = 'flex';
+  } else {
+    executeArchive(false);
+  }
+});
+
+document.getElementById('btn-archive-no').addEventListener('click', () => {
+  document.getElementById('archive-modal').style.display = 'none';
+  executeArchive(false);
+});
+
+document.getElementById('btn-archive-yes').addEventListener('click', () => {
+  document.getElementById('archive-modal').style.display = 'none';
+  executeArchive(true);
+});
+
+function executeArchive(includeDeficitAsVacation) {
+  const s = getSettings();
+  let finalRowsToArchive = [...rows];
+  const validRowsForDays = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const count = validRowsForDays.length;
+
+  if (includeDeficitAsVacation) {
+    let totalDeficit = 0;
+    finalRowsToArchive.forEach(row => {
+      const calc = computeDay(row, s);
+      const { deficit } = dayPay(row, s, calc, count);
+      totalDeficit += deficit;
+    });
+
+    if (totalDeficit > 0.001) {
+      finalRowsToArchive.push({
+        id: 'deficit-vacation-completion',
+        date: '',
+        clockIn: '',
+        clockOut: '',
+        travel: false,
+        meal: false,
+        isDeficitCompletion: true,
+        completionHours: totalDeficit
+      });
+    }
+  }
+
+  let totalVacationUsed = 0;
+  finalRowsToArchive.forEach(row => {
+    if (row.isDeficitCompletion) {
+      totalVacationUsed += (row.completionHours || 0);
+    } else {
+      const calc = computeDay(row, s);
+      if (row.vacation) totalVacationUsed += calc.netHours;
+    }
+  });
+
+  const vacPrev = parseFloat(document.getElementById('vac-prev').value) || 0;
+  const vacCredit = parseFloat(document.getElementById('vac-credit').value) || 0;
+  const projectedNewBalance = vacPrev + vacCredit - totalVacationUsed;
+  const maxAllowedNegative = -42.0;
+
+  let finalNewBalance = Math.max(maxAllowedNegative, projectedNewBalance);
+  document.getElementById('vac-prev').value = finalNewBalance.toFixed(2);
+
+  const cycleName = getCycleName(rows) || 'חודש ללא שם';
+  archive.push({ id: Date.now().toString(), name: cycleName, rows: finalRowsToArchive, settings: getSettings() });
+  rows = [];
+  
+  renderRows();
+  renderArchive();
+  recalcAndSave();
+}
+
+// --- טיימר משמרת פעילה מיועל ---
+if(timerInterval) clearInterval(timerInterval);
+timerInterval = setInterval(() => {
+  if (!currentUser || currentUser === 'admin') return;
+
+  const activeRows = rows.filter(r => r.clockIn && !r.clockOut);
+  const banner = document.getElementById('active-shift-banner');
+
+  if (activeRows.length === 0) {
+    if (banner && banner.style.display !== 'none') {
+      banner.style.display = 'none';
+    }
+    return;
+  }
+
+  const s = getSettings();
+  let activeDateStr = '';
+  let activeInStr = '';
+  let activeTimerStr = ''; 
+  let activeElapsedStr = '';
+  let active125Str = '';
+  let active150Str = '';
+  let show125 = false;
+  let show150 = false;
+
+  activeRows.forEach(row => {
+    const newText = calculateTimerText(row, s);
+    
+    document.querySelectorAll(`[data-timer-id="${row.id}"]`).forEach(badge => {
+      badge.textContent = newText;
+      if (newText === 'הסתיים' || newText === 'שבתון') badge.classList.add('finished');
+      else badge.classList.remove('finished');
+    });
+
+    activeDateStr = isoToEu(row.date) || '';
+    activeInStr = row.clockIn;
+    activeTimerStr = newText;
+
+    const inMin = toMin(row.clockIn);
+    if (inMin != null) {
+      const wd = weekdayOf(row.date);
+      const holidayName = getHolidayInfo(row.date);
+      const isEve = holidayName && holidayName.includes('ערב');
+      const standardStartMin = s.dayStart;
+      let standardEndMin = (wd === 4 && s.thuEnd != null) ? s.thuEnd : s.dayEnd;
+      if (isEve) standardEndMin = 795;
+
+      const standardTotalNetSec = (standardEndMin != null && standardStartMin != null) ? Math.max(0, (standardEndMin - standardStartMin - (s.breakMin || 0))) * 60 : 0;
+      const breakSec = (s.breakMin || 0) * 60;
+
+      const now = new Date();
+      const currentTotalSec = (now.getHours() * 60 + now.getMinutes()) * 60 + now.getSeconds();
+      let inTotalSec = inMin * 60;
+      
+      let rawElapsedSec = currentTotalSec - inTotalSec;
+      if (rawElapsedSec < 0) rawElapsedSec += 24 * 3600; 
+      
+      let netElapsedSec = Math.max(0, rawElapsedSec - breakSec);
+      activeElapsedStr = formatSecToHHMMSS(rawElapsedSec);
+      
+      let otNetSec = Math.max(0, netElapsedSec - standardTotalNetSec);
+      if (otNetSec > 0) {
+        show125 = true;
+        let ot125Sec = Math.min(2 * 3600, otNetSec);
+        active125Str = formatSecToHHMMSS(ot125Sec);
+        
+        let ot150Sec = Math.max(0, otNetSec - 2 * 3600);
+        if (ot150Sec > 0) {
+          show150 = true;
+          active150Str = formatSecToHHMMSS(ot150Sec);
+        }
+      }
+    }
+  });
+
+  if (banner) {
+    banner.style.display = 'flex';
+    document.getElementById('active-shift-date').textContent = activeDateStr || '-';
+    document.getElementById('active-shift-in').textContent = activeInStr || '-';
+    document.getElementById('active-shift-timer').textContent = activeTimerStr || '-';
+    
+    const elapsedTimer = document.getElementById('active-shift-elapsed-timer');
+    if (elapsedTimer) elapsedTimer.textContent = activeElapsedStr || '00:00:00';
+    
+    const container125 = document.getElementById('container-ot125');
+    const text125 = document.getElementById('active-shift-ot125');
+    if (container125 && text125) {
+      container125.style.display = show125 ? 'inline' : 'none';
+      text125.textContent = active125Str;
+    }
+
+    const container150 = document.getElementById('container-ot150');
+    const text150 = document.getElementById('active-shift-ot150');
+    if (container150 && text150) {
+      container150.style.display = show150 ? 'inline' : 'none';
+      text150.textContent = active150Str;
+    }
+  }
+}, 1000);
+
+function calculateIncomeTax(gross) {
+  let rawTax = 0;
+  let remaining = gross;
+  for (const bracket of TAX_CONFIG.incomeBrackets) {
+    if (remaining > bracket.threshold) {
+      rawTax += (remaining - bracket.threshold) * bracket.rate;
+      remaining = bracket.threshold;
+    }
+  }
+  return rawTax;
+}
+
+function recalc(){
+  const s = getSettings();
+  let netHoursTotal=0, sumTravel=0, travelDays=0, mealDays=0, regHrs=0, h125Hrs=0, h150Hrs=0, deficitHrs=0, breakHrsTotal=0;
+  let vacationHrs=0, sickHrs=0, sum125=0, sum150=0;
+  let totalVacationUsed = 0; 
+
+  const validRowsForDays = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const workingDaysCount = validRowsForDays.length;
+  
+  const fixedHourlyRate = (s.baseMonthly || 11319.40) / TAX_CONFIG.standardMonthlyHours;
+
+  rows.forEach(row=>{
+    if (row.isDeficitCompletion) {
+      let compHrs = row.completionHours || 0;
+      vacationHrs += compHrs;
+      netHoursTotal += compHrs;
+      totalVacationUsed += compHrs;
+      return;
+    }
+
+    const calc = computeDay(row, s);
+    if (calc.isWeekendHoliday || calc.isFridayEve) return; 
+
+    const {deficit} = dayPay(row, s, calc, workingDaysCount);
+    if(row.meal && !calc.isHoliday && !row.customHolidayName) mealDays++;
+    netHoursTotal += calc.netHours; breakHrsTotal += calc.breakHours;
+    
+    if (row.vacation || calc.isHoliday || row.customHolidayName) {
+       vacationHrs += calc.hReg;
+       if (row.vacation) totalVacationUsed += calc.netHours;
+    } else if (row.sick) {
+       sickHrs += calc.hReg;
+    } else {
+       regHrs += calc.hReg;
+    }
+
+    h125Hrs += calc.h125; h150Hrs += calc.h150; deficitHrs += deficit;
+    
+    sum125 += calc.h125 * fixedHourlyRate * 1.25; 
+    sum150 += calc.h150 * fixedHourlyRate * 1.5;
+    
+    if(row.travel && (!row.sick || row.sickType !== 1) && !calc.isHoliday && !row.customHolidayName){ sumTravel += (s.rateTravel||0); travelDays++; }
+  });
+
+  const vacPrev = parseFloat(document.getElementById('vac-prev').value) || 0;
+  const vacCredit = parseFloat(document.getElementById('vac-credit').value) || 0;
+  const vacNew = vacPrev + vacCredit - totalVacationUsed;
+
+  document.getElementById('vac-used').textContent = totalVacationUsed.toFixed(2);
+  document.getElementById('vac-new').textContent = vacNew.toFixed(2);
+
+  const totalGelumMeal = mealDays * (s.gelumMealPerDay || 0);
+  const totalGelum = (s.gelumPhone || 0) + totalGelumMeal + (s.gelumDental || 0);
+  
+  const deficitDeductionAmount = deficitHrs * fixedHourlyRate;
+  const totalBaseMonthly = Math.max(0, (s.baseMonthly || 11319.40) - deficitDeductionAmount);
+
+  const gross = totalBaseMonthly + sum125 + sum150 + sumTravel + (s.fixedNvidia || 0) + ((s.variableBonus || 0) * fixedHourlyRate) + totalGelum;
+  const baseForPension = (s.baseMonthly || 11319.40); 
+  
+  const rawTax = calculateIncomeTax(gross);
+
+  const penEmp = Math.max(0, baseForPension) * (s.pctPenEmp || 0) / 100;
+  const kerEmp = Math.max(0, baseForPension) * (s.pctKerEmp || 0) / 100;
+
+  const pointsDiscount = (s.taxPoints || 0) * (s.taxPointValue || 242);
+  const pensionTaxCredit = penEmp * TAX_CONFIG.pensionTaxCreditRate;
+  const finalTax = Math.max(0, rawTax - pointsDiscount - pensionTaxCredit);
+
+  const bl = TAX_CONFIG.blBracket;
+  const ni = gross <= bl ? gross * TAX_CONFIG.niLowRate : (bl * TAX_CONFIG.niLowRate) + ((gross - bl) * TAX_CONFIG.niHighRate);
+  const health = gross <= bl ? gross * TAX_CONFIG.healthLowRate : (bl * TAX_CONFIG.healthLowRate) + ((gross - bl) * TAX_CONFIG.healthHighRate);
+  const niHealth = ni + health;
+
+  const mealDeduction = mealDays * (s.mealCost || 0);
+  const deductions = finalTax + niHealth + mealDeduction + penEmp + kerEmp + (s.fixedDed || 0) + totalGelum;
+  const net = gross - deductions;
+
+  const penEr = Math.max(0, baseForPension) * (s.pctPenEr || 0) / 100;
+  const sevEr = Math.max(0, baseForPension) * (s.pctSevEr || 0) / 100;
+  const kerEr = Math.max(0, baseForPension) * (s.pctKerEr || 0) / 100;
+  const totalEmployer = (gross - totalGelum) + penEr + sevEr + kerEr;
+
+  document.getElementById('s-hours').textContent = fmtHM(netHoursTotal);
+  document.getElementById('s-gross').textContent = fmt(gross);
+  document.getElementById('s-ded').textContent = fmt(deductions);
+  document.getElementById('s-net').textContent = fmt(net);
+
+  document.getElementById('dash-days-count').textContent = workingDaysCount;
+  document.getElementById('dash-total-hours').textContent = fmtHM(netHoursTotal);
+  document.getElementById('dash-ot-hours').textContent = fmtHM(h125Hrs + h150Hrs);
+  document.getElementById('dash-deficit-val').textContent = deficitHrs > 0 ? `-${fmtHM(deficitHrs)}` : `00:00`;
+  document.getElementById('dash-net-val').textContent = fmt(net);
+
+  const totalOtAndReg = (regHrs + vacationHrs + sickHrs + h125Hrs + h150Hrs) || 1;
+  const pctReg = Math.min(100, Math.max(0, ((regHrs + vacationHrs + sickHrs) / totalOtAndReg) * 100));
+  const pct125 = Math.min(100, Math.max(0, (h125Hrs / totalOtAndReg) * 100));
+  const pct150 = Math.min(100, Math.max(0, (h150Hrs / totalOtAndReg) * 100));
+
+  document.getElementById('bar-reg').style.width = pctReg + '%';
+  document.getElementById('val-reg').textContent = fmtHM(regHrs + vacationHrs + sickHrs);
+  document.getElementById('bar-125').style.width = pct125 + '%';
+  document.getElementById('val-125').textContent = fmtHM(h125Hrs);
+  document.getElementById('bar-150').style.width = pct150 + '%';
+  document.getElementById('val-150').textContent = fmtHM(h150Hrs);
+
+  document.getElementById('breakdown').innerHTML = `
+    <div class="brow" style="color:var(--text-dim);font-size:13px"><span>הפסקות שנוכו (${workingDaysCount} ימים)</span><span class="amt">−${fmtHM(breakHrsTotal)}</span></div>
+    <div class="brow"><span>בסיס חודשי משרה קבוע</span><span class="amt plus">+${fmt(s.baseMonthly || 11319.40)}</span></div>
+    ${deficitHrs > 0 ? `<div class="brow" style="color:var(--rust);"><span>קיזוז שעות חוסר (${fmtHM(deficitHrs)} × ${fmt(fixedHourlyRate)})</span><span class="amt minus" style="direction:ltr;">−${fmt(deficitDeductionAmount)}</span></div>` : ''}
+    <div class="brow"><span>שעות נוספות 125% (${fmtHM(h125Hrs)})</span><span class="amt plus">+${fmt(sum125)}</span></div>
+    <div class="brow"><span>שעות נוספות 150% (${fmtHM(h150Hrs)})</span><span class="amt plus">+${fmt(sum150)}</span></div>
+    <div class="brow"><span>נסיעות (${travelDays} ימים)</span><span class="amt plus">+${fmt(sumTravel)}</span></div>
+    <div class="brow"><span>סה״כ גילומים</span><span class="amt plus">+${fmt(totalGelum)}</span></div>
+    ${s.fixedNvidia ? `<div class="brow"><span>בונוס NVIDIA קבוע</span><span class="amt plus">+${fmt(s.fixedNvidia)}</span></div>` : ''}
+    ${s.variableBonus ? `<div class="brow"><span>פרמיה משתנה (${s.variableBonus} שעות)</span><span class="amt plus">+${fmt(s.variableBonus * fixedHourlyRate)}</span></div>` : ''}
+    <div class="brow total"><span>סה״כ ברוטו (כולל גילום)</span><span class="amt">${fmt(gross)}</span></div>
+    <div class="brow"><span>מס הכנסה (כולל זיכוי 45א)</span><span class="amt minus">−${fmt(finalTax)}</span></div>
+    <div class="brow"><span>ביטוח לאומי (${fmt(ni)}) ובריאות (${fmt(health)})</span><span class="amt minus">−${fmt(niHealth)}</span></div>
+    <div class="brow"><span>ניכוי ארוחות</span><span class="amt minus">−${fmt(mealDeduction)}</span></div>
+    <div class="brow"><span>תגמולים והשתלמות עובד</span><span class="amt minus">−${fmt(penEmp+kerEmp)}</span></div>
+    <div class="brow"><span>ניכויים קבועים + נטרול גילום</span><span class="amt minus">−${fmt((s.fixedDed || 0) + (totalGelum || 0))}</span></div>
+    <div class="brow total"><span>נטו לתשלום</span><span class="amt" style="color:var(--teal)">${fmt(net)}</span></div>
+    <div class="brow total" style="margin-top:20px; border-top:1.5px solid var(--text); padding-top:14px;">
+      <span>עלות מעביד כוללת</span><span class="amt" style="color:var(--text)">${fmt(totalEmployer)}</span>
+    </div>
+  `;
+}
+
+function getStateFingerprint(stateObj) {
+  return JSON.stringify({
+    rows: stateObj.rows || [],
+    archive: stateObj.archive || [],
+    activeDraft: stateObj.activeDraft || null,
+    editingArchiveId: stateObj.editingArchiveId || null,
+    vacationBalance: stateObj.vacationBalance || null,
+    settings: stateObj.settings || null
+  });
+}
+
+function recalcAndSave(){
+  getSettings(true);
+  recalc(); 
+  if (editingArchiveId) {
+    updateCurrentArchiveInList();
+  }
+  if (isUpdatingFromRemote) return;
+  clearTimeout(saveTimer); 
+  saveTimer = setTimeout(save, 500);
+}
+
+async function save(){
+  if(!currentUser || currentUser === 'admin' || isUpdatingFromRemote) return;
+  const status = document.getElementById('status');
+  try{
+    const vacPrev = parseFloat(document.getElementById('vac-prev').value) || 0;
+    const vacCredit = parseFloat(document.getElementById('vac-credit').value) || 0;
+    await db.collection('users').doc(currentUser).set({
+      rows: rows,
+      archive: archive,
+      activeDraft: activeDraft,
+      editingArchiveId: editingArchiveId, 
+      vacationBalance: { prev: vacPrev, credit: vacCredit },
+      settings: getSettings(true),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    status.textContent = 'נשמר בענן ✓';
+  }catch(e){ 
+    console.error("Save error:", e);
+    status.textContent = 'שמירה נכשלה'; 
+  }
+  setTimeout(()=>{ if(status.textContent==='נשמר בענן ✓') status.textContent=''; }, 1500);
+}
+
+function getNextBusinessDate(lastDateStr) {
+  let d = new Date();
+  if (lastDateStr) {
+    const parts = lastDateStr.split('-');
+    if (parts.length === 3) {
+      d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+  }
+  if (isNaN(d.getTime())) d = new Date();
+
+  while (true) {
+    d.setDate(d.getDate() + 1);
+    let wd = d.getDay();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    let iso = `${year}-${month}-${day}`;
+    
+    const holidayName = getHolidayInfo(iso);
+    const isWeekendHoliday = holidayName && !holidayName.includes('ערב') && (wd === 5 || wd === 6);
+    const isFridayEve = holidayName && holidayName.includes('ערב') && wd === 5;
+    
+    if (wd !== 5 && wd !== 6 && !isWeekendHoliday && !isFridayEve) {
+      return iso;
+    }
+  }
+}
+
+function loadAppForUser(){
+  rows = [];
+  archive = [];
+  activeDraft = null;
+  editingArchiveId = null;
+  setupIosPicker(document.getElementById('ios-set-dayStart'), 420);
+  setupIosPicker(document.getElementById('ios-set-dayEnd'), 975);
+  setupIosPicker(document.getElementById('ios-set-thuEnd'), 915);
+  getSettings(true);
+
+  if (unsubscribeRealtime) unsubscribeRealtime();
+
+  let hasLoadedOnce = false;
+
+  unsubscribeRealtime = db.collection('users').doc(currentUser)
+    .onSnapshot((doc) => {
+      if (!doc.exists || !doc.data()) return;
+      if (hasLoadedOnce && doc.metadata.hasPendingWrites) return;
+
+      const data = doc.data();
+      const incomingState = {
+        rows: data.rows || [],
+        archive: data.archive || [],
+        activeDraft: data.activeDraft || null,
+        editingArchiveId: data.editingArchiveId || null,
+        vacationBalance: data.vacationBalance || {
+          prev: parseFloat(document.getElementById('vac-prev').value) || 0,
+          credit: parseFloat(document.getElementById('vac-credit').value) || 0
+        },
+        settings: data.settings || getSettings()
+      };
+
+      const currentState = {
+        rows,
+        archive,
+        activeDraft,
+        editingArchiveId,
+        vacationBalance: {
+          prev: parseFloat(document.getElementById('vac-prev').value) || 0,
+          credit: parseFloat(document.getElementById('vac-credit').value) || 0
+        },
+        settings: getSettings()
+      };
+
+      if (hasLoadedOnce && getStateFingerprint(incomingState) === getStateFingerprint(currentState)) {
+        return;
+      }
+
+      hasLoadedOnce = true;
+      isUpdatingFromRemote = true;
+      rows = incomingState.rows;
+      archive = incomingState.archive;
+      activeDraft = incomingState.activeDraft;
+      editingArchiveId = incomingState.editingArchiveId;
+      
+      if (data.vacationBalance) {
+        if (data.vacationBalance.prev != null) document.getElementById('vac-prev').value = data.vacationBalance.prev;
+        if (data.vacationBalance.credit != null) document.getElementById('vac-credit').value = data.vacationBalance.credit;
+      }
+
+      if (data.settings && !editingArchiveId && !activeDraft) {
+        applySettingsToDOM(data.settings);
+      }
+      
+      syncMobileViewToRows();
+      renderRows(); 
+      renderArchive();
+      recalc();
+      isUpdatingFromRemote = false;
+    }, (error) => {
+      console.error("Realtime sync error:", error);
+    });
+}
+
+function focusNewRowDate(newDateIso) {
+  if (!newDateIso) return;
+  const parts = newDateIso.split('-');
+  if (parts.length === 3) {
+    let y = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10) - 1;
+    let d = parseInt(parts[2], 10);
+    if (d >= 21) {
+      m += 1;
+      if (m > 11) { m = 0; y += 1; }
+    }
+    mobileViewDate = new Date(y, m, 1);
+  }
+}
+
+document.getElementById('addRow').addEventListener('click', ()=>{
+  const last = rows[rows.length-1];
+  const newDate = getNextBusinessDate(last ? last.date : null);
+  rows.push({id:uid(), date:newDate, clockIn:'', clockOut:'', travel:false, meal:false});
+  focusNewRowDate(newDate);
+  renderRows(); recalcAndSave();
+});
+
+document.getElementById('addVacationRow').addEventListener('click', ()=>{
+  const last = rows[rows.length-1];
+  const newDate = getNextBusinessDate(last ? last.date : null);
+  rows.push({id:uid(), date:newDate, clockIn:'', clockOut:'', travel:false, meal:false, vacation:true});
+  focusNewRowDate(newDate);
+  renderRows(); recalcAndSave();
+});
+
+document.getElementById('addSickRow').addEventListener('click', () => {
+  const last = rows[rows.length-1];
+  const dStr = last ? last.date : new Date().toISOString().slice(0,10);
+  document.getElementById('sick-start-date').value = dStr;
+  document.getElementById('sick-end-date').value = dStr;
+  document.getElementById('sick-modal').style.display = 'flex';
+});
+
+document.getElementById('btn-cancel-sick').addEventListener('click', () => {
+  document.getElementById('sick-modal').style.display = 'none';
+});
+
+document.getElementById('btn-confirm-sick').addEventListener('click', () => {
+  const startDateStr = document.getElementById('sick-start-date').value;
+  const endDateStr = document.getElementById('sick-end-date').value;
+  if (!startDateStr || !endDateStr) {
+    alert('יש לבחור תאריך התחלה ותאריך סיום');
+    return;
+  }
+
+  let currDate = new Date(startDateStr + 'T00:00:00');
+  const endDate = new Date(endDateStr + 'T00:00:00');
+
+  if (currDate > endDate) {
+    alert('תאריך ההתחלה חייב להיות קודם או שווה לתאריך הסיום');
+    return;
+  }
+
+  let sickDates = [];
+  while (currDate <= endDate) {
+    const y = currDate.getFullYear();
+    const m = String(currDate.getMonth() + 1).padStart(2, '0');
+    const d = String(currDate.getDate()).padStart(2, '0');
+    sickDates.push(`${y}-${m}-${d}`);
+    currDate.setDate(currDate.getDate() + 1);
+  }
+
+  sickDates.forEach((dateStr, index) => {
+    let sType = 3;
+    if (index === 0) sType = 1;
+    else if (index === 1 || index === 2) sType = 2;
+
+    rows.push({
+      id: uid(),
+      date: dateStr,
+      clockIn: '',
+      clockOut: '',
+      travel: false,
+      meal: false,
+      sick: true,
+      sickType: sType
+    });
+  });
+
+  document.getElementById('sick-modal').style.display = 'none';
+  focusNewRowDate(startDateStr);
+  renderRows();
+  recalcAndSave();
+});
+
+const holidayModal = document.getElementById('holiday-modal');
+const btnOpenHoliday = document.getElementById('btn-open-holiday-modal');
+const btnCancelHoliday = document.getElementById('btn-cancel-holiday');
+const btnConfirmHoliday = document.getElementById('btn-confirm-holiday');
+const holidayDateInput = document.getElementById('holiday-date');
+const holidayNameInput = document.getElementById('holiday-name');
+
+if(btnOpenHoliday) {
+  btnOpenHoliday.addEventListener('click', () => {
+    const last = rows[rows.length-1];
+    const dStr = last ? getNextBusinessDate(last.date) : new Date().toISOString().slice(0,10);
+    holidayDateInput.value = dStr;
+    holidayNameInput.value = '';
+    holidayModal.style.display = 'flex';
+  });
+}
+
+if(btnCancelHoliday) {
+  btnCancelHoliday.addEventListener('click', () => {
+    holidayModal.style.display = 'none';
+  });
+}
+
+if(btnConfirmHoliday) {
+  btnConfirmHoliday.addEventListener('click', () => {
+    const selectedDate = holidayDateInput.value;
+    const customName = holidayNameInput.value.trim() || 'שבתון';
+
+    if (!selectedDate) {
+      alert('אנא בחר תאריך לחג/שבתון');
+      return;
+    }
+
+    rows.push({
+      id: uid(),
+      date: selectedDate,
+      clockIn: '',
+      clockOut: '',
+      travel: false,
+      meal: false,
+      customHolidayName: customName
+    });
+
+    holidayModal.style.display = 'none';
+    focusNewRowDate(selectedDate);
+    renderRows();
+    recalcAndSave();
+  });
+}
+
+document.getElementById('addWeekRow').addEventListener('click', ()=>{
+  let currentDateStr = rows.length > 0 ? rows[rows.length - 1].date : null;
+  let lastAdded = null;
+  for (let i = 0; i < 5; i++) {
+    const nextDate = getNextBusinessDate(currentDateStr);
+    rows.push({id:uid(), date:nextDate, clockIn:'', clockOut:'', travel:false, meal:false});
+    currentDateStr = nextDate;
+    lastAdded = nextDate;
+  }
+  if(lastAdded) focusNewRowDate(lastAdded);
+  renderRows(); recalcAndSave();
+});
+
+document.getElementById('addMonthRow').addEventListener('click', ()=>{
+  let startDate;
+  const validRows = rows.filter(r => r.date);
+  if (validRows.length > 0) {
+    const sorted = [...validRows].sort((a,b) => a.date.localeCompare(b.date));
+    const lastRowDate = sorted[sorted.length - 1].date;
+    const parts = lastRowDate.split('-');
+    let d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    d.setDate(d.getDate() + 1);
+    startDate = d;
+  } else {
+    let vYear = mobileViewDate.getFullYear();
+    let vMonth = mobileViewDate.getMonth();
+    let prevM = vMonth - 1;
+    let prevY = vYear;
+    if (prevM < 0) { prevM = 11; prevY--; }
+    startDate = new Date(prevY, prevM, 21);
+  }
+
+  let curr = new Date(startDate);
+  let limitDate;
+  if (curr.getDate() <= 20) {
+    limitDate = new Date(curr.getFullYear(), curr.getMonth(), 20);
+  } else {
+    limitDate = new Date(curr.getFullYear(), curr.getMonth() + 1, 20);
+  }
+
+  const existingDates = new Set(rows.map(r => r.date));
+  let lastAdded = null;
+
+  while (curr <= limitDate) {
+    let wd = curr.getDay();
+    const year = curr.getFullYear();
+    const month = String(curr.getMonth() + 1).padStart(2, '0');
+    const day = String(curr.getDate()).padStart(2, '0');
+    const isoFormatted = `${year}-${month}-${day}`;
+    const holidayName = getHolidayInfo(isoFormatted);
+    const isWeekendHoliday = holidayName && !holidayName.includes('ערב') && (wd === 5 || wd === 6);
+    const isFridayEve = holidayName && holidayName.includes('ערב') && wd === 5;
+
+    if (wd !== 5 && wd !== 6 && !isWeekendHoliday && !isFridayEve) {
+      if (!existingDates.has(isoFormatted)) {
+        rows.push({id:uid(), date:isoFormatted, clockIn:'', clockOut:'', travel:false, meal:false});
+        existingDates.add(isoFormatted);
+        lastAdded = isoFormatted;
+      }
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  if(lastAdded) focusNewRowDate(lastAdded);
+  renderRows(); 
+  recalcAndSave();
+});
+
+document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  const s = getSettings();
+  const cycleName = getCycleName(rows) || 'דוח';
+  const excelData = [
+    [`דוח שעות - Flex Reporter (${currentUser}) - ${cycleName}`, "", "", "", "", "", "", "", "", "", "", "", "", "", ""], [],
+    ["סטטוס", "תאריך", "יום בשבוע", "כניסה", "יציאה", "גולמי (ש')", "נטו יום (ש')", "רגילות (ש')", "125%", "150%", "קיזוז חוסר (ש')", "נסיעה", "ארוחה", "סה״כ יום (₪)"]
+  ];
+  const validRowsForDays = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const count = validRowsForDays.length;
+
+  rows.forEach(row => {
+    if (row.isDeficitCompletion) return;
+    const calc = computeDay(row, s); 
+    if (calc.isWeekendHoliday || calc.isFridayEve) return;
+
+    const {pay, deficit} = dayPay(row, s, calc, count);
+    const displayDate = row.date ? row.date.split('-').reverse().join('/') : '';
+    let wdDisplay = calc.wd != null ? WEEKDAY_NAMES[calc.wd] : '';
+    if (row.customHolidayName) wdDisplay += ` (${row.customHolidayName})`;
+    else if (calc.holidayName) wdDisplay += ` (${calc.holidayName})`;
+    else if (calc.isEve) wdDisplay += ' (ערב חג)';
+
+    excelData.push([calc.statusTooltip, displayDate, wdDisplay, row.clockIn || '', row.clockOut || '', Math.round(calc.rawHours * 100) / 100, Math.round(calc.netHours * 100) / 100, Math.round(calc.hReg * 100) / 100, Math.round(calc.h125 * 100) / 100, Math.round(calc.h150 * 100) / 100, deficit > 0 ? fmtHM(deficit) + '-' : '00:00', row.travel ? 'כן' : 'לא', row.meal ? 'כן' : 'לא', Math.round(pay * 100) / 100]);
+  });
+  excelData.push([], ["סיכומים ופירוט תשלום"]);
+  excelData.push(["סה״כ שעות נטו", document.getElementById('s-hours').textContent]);
+  excelData.push(["סה״כ ברוטו", document.getElementById('s-gross').textContent]);
+  excelData.push(["סה״כ ניכויים מעובד", document.getElementById('s-ded').textContent]);
+  excelData.push(["נטו לתשלום", document.getElementById('s-net').textContent]);
+  const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+  if(!worksheet['!views']) worksheet['!views'] = [{RTL: true}]; else worksheet['!views'][0].RTL = true;
+  const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "דוח שעות");
+  XLSX.writeFile(workbook, `Flex_Report_${currentUser}_${cycleName.replace(' ', '_')}.xlsx`);
+});
+
+document.getElementById('exportHtmlBtn').addEventListener('click', () => {
+  const s = getSettings();
+  const cycleName = getCycleName(rows) || 'דוח';
+  const validRowsForDays = rows.filter(r => {
+    if (r.isDeficitCompletion) return false;
+    const calc = computeDay(r, s);
+    return !calc.isWeekendHoliday && !calc.isFridayEve && !calc.isHoliday && !r.customHolidayName;
+  });
+  const count = validRowsForDays.length;
+
+  let tableRowsHtml = '';
+  rows.forEach(row => {
+    if (row.isDeficitCompletion) return;
+    const calc = computeDay(row, s);
+    if (calc.isWeekendHoliday || calc.isFridayEve) return;
+
+    const {pay, deficit} = dayPay(row, s, calc, count);
+    const displayDate = row.date ? row.date.split('-').reverse().join('/') : '-';
+    let wdDisplay = calc.wd != null ? WEEKDAY_NAMES[calc.wd] : '';
+    if (row.customHolidayName) wdDisplay += ` (${row.customHolidayName})`;
+    else if (calc.holidayName) wdDisplay += ` (${calc.holidayName})`;
+    else if (calc.isEve) wdDisplay += ' (ערב חג)';
+
+    const statusText = row.vacation ? 'חופש' : (row.sick ? `מחלה ${row.sickType === 1 ? '1' : row.sickType === 2 ? '2-3' : '4+'}` : (calc.isHoliday || row.customHolidayName ? 'חג' : 'עבודה'));
+
+    tableRowsHtml += `
+      <tr>
+        <td>${statusText}</td>
+        <td>${displayDate} (${wdDisplay})</td>
+        <td>${row.clockIn || '-'}</td>
+        <td>${row.clockOut || '-'}</td>
+        <td>${fmtHM(calc.netHours)}</td>
+        <td>${fmtHM(calc.hReg)}</td>
+        <td>${fmtHM(calc.h125)}</td>
+        <td>${fmtHM(calc.h150)}</td>
+        <td style="direction:ltr;">${deficit > 0.001 ? '-' + fmtHM(deficit) : '00:00'}</td>
+        <td>${row.travel ? '✓' : '-'}</td>
+        <td>${row.meal ? '✓' : '-'}</td>
+        <td><strong>${fmt(pay)}</strong></td>
+      </tr>
+    `;
+  });
+
+  const breakdownHtml = document.getElementById('breakdown').innerHTML;
+  const htmlDoc = `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>דוח שעות - ${currentUser} - ${cycleName}</title>
+<style>
+  body { font-family: Arial, sans-serif; color: #1d1d1f; background: #fff; margin: 24px; direction: rtl; font-variant-numeric: tabular-nums; }
+  h1 { font-size: 22px; margin-bottom: 4px; color: #0071e3; }
+  .meta { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .summary-bar { display: flex; gap: 16px; margin-bottom: 24px; border: 1px solid #ddd; border-radius: 10px; padding: 14px; background: #f9f9fb; }
+  .summary-bar div { flex: 1; text-align: center; }
+  .summary-bar span { display: block; font-size: 11px; color: #666; margin-bottom: 4px; }
+  .summary-bar strong { font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 28px; }
+  th, td { border: 1px solid #e5e5ea; padding: 8px 6px; text-align: center; }
+  th { background: #f5f5f7; font-weight: 600; }
+  .breakdown { max-width: 600px; border: 1px solid #e5e5ea; border-radius: 10px; padding: 16px; }
+  .brow { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+  .brow.total { border-top: 2px solid #1d1d1f; border-bottom: none; font-weight: 700; font-size: 15px; margin-top: 8px; padding-top: 10px; }
+  .plus { color: #0b6623; }
+  .minus { color: #d70015; }
+  @media print { body { margin: 10px; } }
+</style>
+</head>
+<body>
+  <h1>Flex Reporter — דוח שעות ושכר</h1>
+  <div class="meta">עובד: <strong>${currentUser}</strong> | מחזור: <strong>${cycleName}</strong> | הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</div>
+  <div class="summary-bar">
+    <div><span>סה״כ שעות נטו</span><strong>${document.getElementById('s-hours').textContent}</strong></div>
+    <div><span>ברוטו</span><strong style="color:#8e6f00;">${document.getElementById('s-gross').textContent}</strong></div>
+    <div><span>ניכויים מעובד</span><strong style="color:#d70015;">${document.getElementById('s-ded').textContent}</strong></div>
+    <div><span>נטו לתשלום</span><strong style="color:#008296;">${document.getElementById('s-net').textContent}</strong></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>סוג</th><th>תאריך</th><th>כניסה</th><th>יציאה</th><th>נטו</th><th>רגילות</th><th>125%</th><th>150%</th><th>חוסר</th><th>נסיעה</th><th>ארוחה</th><th>סה״כ ₪</th>
+      </tr>
+    </thead>
+    <tbody>${tableRowsHtml}</tbody>
+  </table>
+  <h2 style="font-size:16px;">פירוט התשלום ועלות מעביד</h2>
+  <div class="breakdown">${breakdownHtml}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Flex_Report_${currentUser}_${cycleName.replace(/\s+/g, '_')}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('vac-prev').addEventListener('input', recalcAndSave);
+document.getElementById('vac-credit').addEventListener('input', recalcAndSave);
+
+['breakMin','baseMonthly','rateTravel','mealCost','gelumPhone','gelumMealPerDay','gelumDental','taxPoints','taxPointValue','pctPenEmp','pctPenEr','pctSevEr','pctKerEmp','pctKerEr','fixedDed','fixedNvidia','variableBonus'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{ recalcAndSave(); });
+});
+['ios-set-dayStart','ios-set-dayEnd','ios-set-thuEnd'].forEach(id=>{
+  document.getElementById(id).querySelectorAll('select').forEach(sel=>{ sel.addEventListener('change', ()=>{ recalcAndSave(); }); });
+});
+</script>
+
+</body>
+</html>
