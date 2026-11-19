@@ -292,10 +292,75 @@
 
   .mobile-cards-container { display: none; flex-direction: column; gap: 14px; }
 
+  /* כפתור הוספת יום עליון למובייל בלבד */
+  .mobile-top-actions {
+    display: none;
+    margin-bottom: 14px;
+  }
+  .mobile-top-add-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(0, 113, 227, 0.25);
+    transition: transform 0.12s ease, box-shadow 0.15s ease;
+  }
+  .mobile-top-add-btn:active {
+    transform: scale(0.98);
+  }
+
+  /* הדגשה ייחודית לכרטיסיית המשמרת הפעילה במובייל */
+  .mobile-day-card.active-shift-card {
+    background: linear-gradient(145deg, rgba(0, 113, 227, 0.09) 0%, var(--card-bg) 65%);
+    border: 2px solid var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 113, 227, 0.18);
+    position: relative;
+  }
+  [data-theme="dark"] .mobile-day-card.active-shift-card {
+    background: linear-gradient(145deg, rgba(41, 151, 255, 0.18) 0%, var(--card-bg) 65%);
+    box-shadow: 0 8px 26px rgba(41, 151, 255, 0.24);
+  }
+  .active-card-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 99px;
+    align-self: flex-start;
+    box-shadow: 0 2px 8px rgba(0, 113, 227, 0.3);
+  }
+  .active-card-pill .pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffffff;
+    animation: pulseWhite 1.5s infinite;
+  }
+  @keyframes pulseWhite {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.85); }
+    70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  }
+
   @media (max-width: 900px) {
     .desktop-table-container { display: none !important; }
     .mobile-cards-container { display: flex !important; }
     .mobile-calendar-nav { display: flex !important; }
+    .mobile-top-actions { display: block !important; }
     .card { padding: 16px !important; border-radius: 16px !important; }
     .strip { padding: 12px 6px !important; border-radius: 14px !important; }
     .strip .cell { padding: 0 4px !important; }
@@ -319,7 +384,7 @@
   .mobile-calendar-nav {
     display: none; align-items: center; justify-content: space-between;
     background: var(--card-bg); border: 1px solid var(--line); border-radius: 14px;
-    padding: 12px 14px; margin-bottom: 18px; font-weight: 600; font-size: 14.5px; color: var(--text);
+    padding: 12px 14px; margin-bottom: 14px; font-weight: 600; font-size: 14.5px; color: var(--text);
     box-shadow: var(--shadow-sm);
   }
   .mobile-cal-btn {
@@ -785,6 +850,10 @@
           <button class="mobile-cal-btn" id="cal-today" style="font-size:12px; padding:6px 10px;">היום</button>
           <button class="mobile-cal-btn" id="cal-next-month">→</button>
         </div>
+      </div>
+
+      <div class="mobile-top-actions">
+        <button class="mobile-top-add-btn" id="addRowMobileTop">+ הוספת יום עבודה חדש</button>
       </div>
 
       <div class="desktop-table-container">
@@ -1864,6 +1933,10 @@ function attachRowListeners(wrapper, row) {
   if (btnDel) btnDel.addEventListener('click', () => { triggerSafeDelete(row.id); });
 }
 
+function isActiveShiftRow(row) {
+  return Boolean(row.clockIn && !row.clockOut && !row.vacation && !row.sick && !row.customHolidayName && !row.isDeficitCompletion);
+}
+
 function renderRows(){
   const tbodyDesktop = document.getElementById('rows-desktop');
   const containerMobile = document.getElementById('rows-mobile');
@@ -1883,15 +1956,21 @@ function renderRows(){
   });
   const count = workingDaysCount.length;
 
-  rows.forEach(row=>{
+  // במובייל בלבד: מציג כרטיסייה פעילה (כניסה ללא יציאה) בראש הרשימה
+  const rowsToRender = isMobile
+    ? [...rows.filter(isActiveShiftRow), ...rows.filter(r => !isActiveShiftRow(r))]
+    : rows;
+
+  rowsToRender.forEach(row=>{
     if (row.isDeficitCompletion) return;
     const calc = computeDay(row, s);
+    const isActiveShift = isActiveShiftRow(row);
     
     if (showOnlyAnomalies && calc.statusBadge !== '🔴' && calc.statusBadge !== '🟠' && calc.statusBadge !== '🟡') {
       return;
     }
 
-    if (isMobile && !isDateInMobileViewCycle(row.date, mobileViewDate)) {
+    if (isMobile && !isActiveShift && !isDateInMobileViewCycle(row.date, mobileViewDate)) {
       return;
     }
 
@@ -2021,8 +2100,9 @@ function renderRows(){
       }
 
       const mobileWrapper = document.createElement('div');
-      mobileWrapper.className = `mobile-day-card ${cardStyleClass}`;
+      mobileWrapper.className = `mobile-day-card ${cardStyleClass} ${isActiveShift ? 'active-shift-card' : ''}`;
       mobileWrapper.innerHTML = `
+        ${isActiveShift ? `<div class="active-card-pill"><span class="pill-dot"></span>משמרת פעילה כעת</div>` : ''}
         <div class="mobile-card-header">
           <div style="display:flex; align-items:center; gap:8px;">
             <span title="${calc.statusTooltip}" style="cursor:help; font-size:15px;">${calc.statusBadge}</span>
@@ -2318,7 +2398,7 @@ if(timerInterval) clearInterval(timerInterval);
 timerInterval = setInterval(() => {
   if (!currentUser || currentUser === 'admin') return;
 
-  const activeRows = rows.filter(r => r.clockIn && !r.clockOut);
+  const activeRows = rows.filter(isActiveShiftRow);
   const banner = document.getElementById('active-shift-banner');
 
   if (activeRows.length === 0) {
@@ -2726,6 +2806,10 @@ document.getElementById('addRow').addEventListener('click', ()=>{
   rows.push({id:uid(), date:newDate, clockIn:'', clockOut:'', travel:false, meal:false});
   focusNewRowDate(newDate);
   renderRows(); recalcAndSave();
+});
+
+document.getElementById('addRowMobileTop').addEventListener('click', () => {
+  document.getElementById('addRow').click();
 });
 
 document.getElementById('addVacationRow').addEventListener('click', ()=>{
